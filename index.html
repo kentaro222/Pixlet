@@ -714,11 +714,9 @@ function setActiveFrame(i){
 
 function stepFrame(delta){
   stopPlayback();
-  const next=Math.max(0,Math.min(state.frames.length-1,state.activeFrame+delta));
-  if(next===state.activeFrame){
-    render();
-    return;
-  }
+  const count=state.frames.length;
+  if(count<1)return;
+  const next=(state.activeFrame+delta+count)%count;
 
   // Never carry transient selection/edit state across frames.
   drawing=false;
@@ -735,20 +733,20 @@ function stepFrame(delta){
   // Update only the controls that actually depend on the active frame,
   // then redraw the canvas immediately.
   $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
-  $("#prevFrame").disabled=state.activeFrame<=0;
-  $("#nextFrame").disabled=state.activeFrame>=state.frames.length-1;
-  $("#prevFrame").style.opacity=$("#prevFrame").disabled?".4":"1";
-  $("#nextFrame").style.opacity=$("#nextFrame").disabled?".4":"1";
+  $("#prevFrame").disabled=false;
+  $("#nextFrame").disabled=false;
+  $("#prevFrame").style.opacity="1";
+  $("#nextFrame").style.opacity="1";
   renderFrameGrid();
   render();
 }
 
 function syncUI(){
   $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
-  $("#prevFrame").disabled=state.activeFrame<=0;
-  $("#nextFrame").disabled=state.activeFrame>=state.frames.length-1;
-  $("#prevFrame").style.opacity=$("#prevFrame").disabled?".4":"1";
-  $("#nextFrame").style.opacity=$("#nextFrame").disabled?".4":"1";
+  $("#prevFrame").disabled=false;
+  $("#nextFrame").disabled=false;
+  $("#prevFrame").style.opacity="1";
+  $("#nextFrame").style.opacity="1";
   $("#onionBtn").classList.toggle("active",onion);
   $("#onionBtn").style.outline=onion?"2px solid var(--accent)":"none";
   $("#onionBtn").style.background=onion?"#2e3c54":"var(--panel2)";

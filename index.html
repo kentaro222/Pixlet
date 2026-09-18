@@ -27,7 +27,7 @@ header .title{min-width:0;text-align:center;font-weight:700;white-space:nowrap;o
 #canvasWrap{position:relative;min-height:0;overflow:hidden;border-radius:16px;background:#0b0d11;touch-action:none}
 #view{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
 #crosshair{position:absolute;display:none;width:20px;height:20px;border:2px solid white;border-radius:4px;pointer-events:none;box-shadow:0 0 0 1px #000}
-#framebar{display:grid;grid-template-columns:44px 1fr 44px 44px 44px 44px;gap:6px}
+#framebar{display:grid;grid-template-columns:38px minmax(42px,1fr) 38px 38px 38px 46px 38px;gap:4px}
 #frameInfo{display:flex;align-items:center;justify-content:center;background:var(--panel);border-radius:12px;font-weight:700}
 #palette{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
 .swatch{height:48px;border-radius:12px;border:2px solid transparent;position:relative}
@@ -96,6 +96,7 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button id="nextFrame">▶</button>
   <button id="addFrame" title="現在フレームを複製して追加">⧉＋</button>
   <button id="onionBtn" title="オニオンスキン">◐</button>
+  <button id="speedBtn" title="再生速度">遅</button>
   <button id="playBtn">▷</button>
 </div>
 
@@ -255,6 +256,12 @@ let tool="pen", zoom=1, offsetX=0, offsetY=0, drawing=false, lastCell=null, sele
 let undo=[], redo=[], selection=null, selectStart=null, selectionClipboard=null, playing=false, playTimer=null;
 let longPressTimer=null,longPressMoved=false,longPressIndex=-1;
 let onion=false;
+const PLAY_SPEEDS=[
+  {label:"遅", ms:420},
+  {label:"普", ms:240},
+  {label:"速", ms:120}
+];
+let playSpeedIndex=0;
 
 const canvas=$("#view"), ctx=canvas.getContext("2d"), wrap=$("#canvasWrap");
 ctx.imageSmoothingEnabled=false;
@@ -682,6 +689,16 @@ function stopPlayback(){
   if(b)b.textContent="▷";
 }
 
+function startPlaybackTimer(){
+  if(playTimer)clearInterval(playTimer);
+  playTimer=setInterval(()=>{
+    state.activeFrame=(state.activeFrame+1)%state.frames.length;
+    $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
+    renderFrameGrid();
+    render();
+  },PLAY_SPEEDS[playSpeedIndex].ms);
+}
+
 function setActiveFrame(i){
   stopPlayback();
   const next=Math.max(0,Math.min(state.frames.length-1,i));
@@ -735,6 +752,8 @@ function syncUI(){
   $("#onionBtn").classList.toggle("active",onion);
   $("#onionBtn").style.outline=onion?"2px solid var(--accent)":"none";
   $("#onionBtn").style.background=onion?"#2e3c54":"var(--panel2)";
+  $("#speedBtn").textContent=PLAY_SPEEDS[playSpeedIndex].label;
+  $("#speedBtn").title=`再生速度: ${PLAY_SPEEDS[playSpeedIndex].label}`;
   $$(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));
   $$(".layer").forEach(b=>{
     b.classList.toggle("active",+b.dataset.layer===state.activeLayer);
@@ -902,6 +921,13 @@ $("#onionBtn").onclick=()=>{
   onion=!onion;
   syncUI();
   render();
+};
+$("#speedBtn").onclick=()=>{
+  playSpeedIndex=(playSpeedIndex+1)%PLAY_SPEEDS.length;
+  $("#speedBtn").textContent=PLAY_SPEEDS[playSpeedIndex].label;
+  $("#speedBtn").title=`再生速度: ${PLAY_SPEEDS[playSpeedIndex].label}`;
+  if(playing)startPlaybackTimer();
+  toast(`再生速度: ${PLAY_SPEEDS[playSpeedIndex].label}`);
 };
 $("#undoBtn").onclick=()=>{if(!undo.length)return;redo.push(JSON.stringify(serialize()));restore(undo.pop())};
 $("#redoBtn").onclick=()=>{if(!redo.length)return;undo.push(JSON.stringify(serialize()));restore(redo.pop())};
@@ -1253,12 +1279,7 @@ $("#playBtn").onclick=()=>{
   playing=true;
   $("#playBtn").textContent="■";
   render();
-  playTimer=setInterval(()=>{
-    state.activeFrame=(state.activeFrame+1)%state.frames.length;
-    $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
-    renderFrameGrid();
-    render();
-  },140);
+  startPlaybackTimer();
 };
 
 addEventListener("resize",()=>{fitCanvas();render()});

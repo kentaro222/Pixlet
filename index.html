@@ -43,7 +43,7 @@ header .title{min-width:0;text-align:center;font-weight:700;white-space:nowrap;o
 #tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .tool.active{outline:2px solid var(--accent);background:#2e3c54}
 #layers{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.layer.active{outline:2px solid var(--accent);background:#2e3c54}
+.layer.active{outline:2px solid var(--accent);background:#2e3c54}.layer{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .sheet{position:fixed;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));z-index:20;background:var(--panel);border-radius:18px;padding:14px;box-shadow:0 12px 60px #0008;display:none;max-height:78dvh;overflow:auto}
 .sheet.open{display:block}
 .sheet h3{margin:0 0 12px}
@@ -905,34 +905,23 @@ $("#importPngBtn").onclick=()=>openSheet("#pngSheet");
 
 $$(".tool").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;syncUI()});
 $$(".layer").forEach(b=>{
-  let timer=null, moved=false, longDone=false;
-  b.addEventListener("pointerdown",()=>{
-    if(selection)return;
-    moved=false; longDone=false;
-    timer=setTimeout(()=>{
-      const li=+b.dataset.layer;
-      state.layerVisible[li]=!state.layerVisible[li];
-      longDone=true;
-      navigator.vibrate?.(20);
-      saveLocal();
-      syncUI();
-      toast(state.layerVisible[li]?"レイヤー表示":"レイヤー非表示");
-    },650);
-  });
-  b.addEventListener("pointermove",()=>{
-    moved=true;
-    if(timer){clearTimeout(timer);timer=null;}
-  });
-  b.addEventListener("pointerup",()=>{
-    if(timer){clearTimeout(timer);timer=null;}
+  b.addEventListener("click",()=>{
     if(selection){toast("選択中はレイヤーを操作できません");return;}
-    if(!moved && !longDone){
-      state.activeLayer=+b.dataset.layer;
-      saveLocal();
-      syncUI();
-    }
+    state.activeLayer=+b.dataset.layer;
+    saveLocal();
+    syncUI();
   });
-  b.addEventListener("pointercancel",()=>{if(timer)clearTimeout(timer);timer=null;});
+  b.addEventListener("dblclick",e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(selection){toast("選択中はレイヤーを操作できません");return;}
+    const li=+b.dataset.layer;
+    state.layerVisible[li]=!state.layerVisible[li];
+    navigator.vibrate?.(20);
+    saveLocal();
+    syncUI();
+    toast(state.layerVisible[li]?"レイヤー表示":"レイヤー非表示");
+  });
 });
 $("#prevFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(-1);};
 $("#nextFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(1);};

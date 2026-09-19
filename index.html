@@ -110,9 +110,9 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 </div>
 
 <div id="layers">
-  <button class="layer" data-layer="0">BG</button>
-  <button class="layer active" data-layer="1">MAIN</button>
-  <button class="layer" data-layer="2">FG</button>
+  <button class="layer" data-layer="0"><span class="vis">●</span> BG</button>
+  <button class="layer active" data-layer="1"><span class="vis">●</span> MAIN</button>
+  <button class="layer" data-layer="2"><span class="vis">●</span> FG</button>
 </div>
 </div>
 
@@ -247,7 +247,8 @@ const $$ = s => [...document.querySelectorAll(s)];
 const DEFAULT = {
   version:1,width:16,height:16,
   palette:["transparent","#17191f","#f4f4f4","#e05a47","#e6b84f","#5a8dee","#5ec27f","#9b6fe3"],
-  frames:[], activeFrame:0, activeLayer:1, activeColor:1
+  frames:[], activeFrame:0, activeLayer:1, activeColor:1,
+  layerVisible:[true,true,true]
 };
 
 let state = loadLocal() || structuredClone(DEFAULT);
@@ -274,13 +275,15 @@ function normalizeLoaded(obj){
   obj.activeFrame = Math.min(obj.activeFrame||0,obj.frames.length-1);
   obj.activeLayer = obj.activeLayer ?? 1;
   obj.activeColor = obj.activeColor ?? 1;
+  if(!Array.isArray(obj.layerVisible) || obj.layerVisible.length!==3) obj.layerVisible=[true,true,true];
   return obj;
 }
 function serialize(){
   return {
     version:1,width:state.width,height:state.height,palette:state.palette,
     frames:state.frames.map(f=>({layers:f.layers.map(a=>Array.from(a))})),
-    activeFrame:state.activeFrame,activeLayer:state.activeLayer,activeColor:state.activeColor
+    activeFrame:state.activeFrame,activeLayer:state.activeLayer,activeColor:state.activeColor,
+    layerVisible:state.layerVisible
   };
 }
 function saveLocal(){
@@ -327,7 +330,7 @@ function drawComposite(frameIndex,alpha=1,tint=null){
   for(let y=0;y<state.height;y++){
     for(let x=0;x<state.width;x++){
       let c=0;
-      for(let l=0;l<3;l++){ const v=f.layers[l][y*state.width+x]; if(v)c=v; }
+      for(let l=0;l<3;l++){ if(!state.layerVisible[l]) continue; const v=f.layers[l][y*state.width+x]; if(v)c=v; }
       if(c){
         ctx.globalAlpha=alpha;
         ctx.fillStyle=tint || state.palette[c];
@@ -368,8 +371,11 @@ function render(){
   }
   $("#selbar").classList.toggle("show",!!selection);
   $$(".layer").forEach(b=>{
+    const li=+b.dataset.layer;
     b.disabled=!!selection;
-    b.style.opacity=selection?".45":"1";
+    b.style.opacity=selection?".45":(state.layerVisible[li]?"1":".55");
+    const vis=b.querySelector(".vis");
+    if(vis)vis.textContent=state.layerVisible[li]?"●":"○";
   });
 }
 function screenToCell(clientX,clientY){
@@ -754,9 +760,12 @@ function syncUI(){
   $("#speedBtn").title=`再生速度: ${PLAY_SPEEDS[playSpeedIndex].label}`;
   $$(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));
   $$(".layer").forEach(b=>{
-    b.classList.toggle("active",+b.dataset.layer===state.activeLayer);
+    const li=+b.dataset.layer;
+    b.classList.toggle("active",li===state.activeLayer);
     b.disabled=!!selection;
-    b.style.opacity=selection?".45":"1";
+    b.style.opacity=selection?".45":(state.layerVisible[li]?"1":".55");
+    const vis=b.querySelector(".vis");
+    if(vis)vis.textContent=state.layerVisible[li]?"●":"○";
   });
   renderPalette();
   renderFrameGrid();
@@ -895,9 +904,35 @@ $("#saveCodeBtn").onclick=()=>{ $("#codeArea").value=makeCode(); openSheet("#cod
 $("#importPngBtn").onclick=()=>openSheet("#pngSheet");
 
 $$(".tool").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;syncUI()});
-$$(".layer").forEach(b=>b.onclick=()=>{
-  if(selection){toast("選択中はレイヤーを切り替えられません");return;}
-  state.activeLayer=+b.dataset.layer;saveLocal();syncUI();
+$$(".layer").forEach(b=>{
+  let timer=null, moved=false, longDone=false;
+  b.addEventListener("pointerdown",()=>{
+    if(selection)return;
+    moved=false; longDone=false;
+    timer=setTimeout(()=>{
+      const li=+b.dataset.layer;
+      state.layerVisible[li]=!state.layerVisible[li];
+      longDone=true;
+      navigator.vibrate?.(20);
+      saveLocal();
+      syncUI();
+      toast(state.layerVisible[li]?"レイヤー表示":"レイヤー非表示");
+    },650);
+  });
+  b.addEventListener("pointermove",()=>{
+    moved=true;
+    if(timer){clearTimeout(timer);timer=null;}
+  });
+  b.addEventListener("pointerup",()=>{
+    if(timer){clearTimeout(timer);timer=null;}
+    if(selection){toast("選択中はレイヤーを操作できません");return;}
+    if(!moved && !longDone){
+      state.activeLayer=+b.dataset.layer;
+      saveLocal();
+      syncUI();
+    }
+  });
+  b.addEventListener("pointercancel",()=>{if(timer)clearTimeout(timer);timer=null;});
 });
 $("#prevFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(-1);};
 $("#nextFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(1);};
@@ -937,7 +972,7 @@ function renderFrameGrid(){
     const c=document.createElement("canvas");c.width=state.width;c.height=state.height;
     const cx=c.getContext("2d");cx.imageSmoothingEnabled=false;
     for(let y=0;y<state.height;y++)for(let x=0;x<state.width;x++){
-      let col=0;for(let l=0;l<3;l++){const v=f.layers[l][idx(x,y)];if(v)col=v}
+      let col=0;for(let l=0;l<3;l++){if(!state.layerVisible[l])continue;const v=f.layers[l][idx(x,y)];if(v)col=v}
       if(col){cx.fillStyle=state.palette[col];cx.fillRect(x,y,1,1);}
     }
     const b=document.createElement("b");b.textContent=i+1;d.append(c,b);
@@ -1070,7 +1105,7 @@ function compositeToCanvas(frameIndex, scale=1){
   const c=out.getContext("2d");c.imageSmoothingEnabled=false;
   const f=state.frames[frameIndex];
   for(let y=0;y<state.height;y++)for(let x=0;x<state.width;x++){
-    let col=0;for(let l=0;l<3;l++){const v=f.layers[l][idx(x,y)];if(v)col=v}
+    let col=0;for(let l=0;l<3;l++){if(!state.layerVisible[l])continue;const v=f.layers[l][idx(x,y)];if(v)col=v}
     if(col){c.fillStyle=state.palette[col];c.fillRect(x*scale,y*scale,scale,scale)}
   }
   return out;

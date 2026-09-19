@@ -276,6 +276,11 @@ function normalizeLoaded(obj){
   obj.activeLayer = obj.activeLayer ?? 1;
   obj.activeColor = obj.activeColor ?? 1;
   if(!Array.isArray(obj.layerVisible) || obj.layerVisible.length!==3) obj.layerVisible=[true,true,true];
+  if(!obj.layerVisible.some(Boolean)) obj.layerVisible=[true,true,true];
+  if(!obj.layerVisible[obj.activeLayer]){
+    const firstVisible=obj.layerVisible.findIndex(Boolean);
+    obj.activeLayer=firstVisible>=0?firstVisible:1;
+  }
   return obj;
 }
 function serialize(){
@@ -907,7 +912,12 @@ $$(".tool").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;syncUI()});
 $$(".layer").forEach(b=>{
   b.addEventListener("click",()=>{
     if(selection){toast("選択中はレイヤーを操作できません");return;}
-    state.activeLayer=+b.dataset.layer;
+    const li=+b.dataset.layer;
+    if(!state.layerVisible[li]){
+      toast("非表示レイヤーは選択できません");
+      return;
+    }
+    state.activeLayer=li;
     saveLocal();
     syncUI();
   });
@@ -916,11 +926,23 @@ $$(".layer").forEach(b=>{
     e.stopPropagation();
     if(selection){toast("選択中はレイヤーを操作できません");return;}
     const li=+b.dataset.layer;
-    state.layerVisible[li]=!state.layerVisible[li];
+    const willShow=!state.layerVisible[li];
+
+    // Do not allow a hidden layer to remain the active edit target.
+    if(!willShow && li===state.activeLayer){
+      const replacement=[0,1,2].find(i=>i!==li && state.layerVisible[i]);
+      if(replacement===undefined){
+        toast("最後の表示レイヤーは非表示にできません");
+        return;
+      }
+      state.activeLayer=replacement;
+    }
+
+    state.layerVisible[li]=willShow;
     navigator.vibrate?.(20);
     saveLocal();
     syncUI();
-    toast(state.layerVisible[li]?"レイヤー表示":"レイヤー非表示");
+    toast(willShow?"レイヤー表示":"レイヤー非表示");
   });
 });
 $("#prevFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(-1);};

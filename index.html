@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-<title>DotSprite Mobile</title>
+<title>Pixlet Mobile</title>
 <style>
 :root{
   --bg:#111318;
@@ -17,7 +17,7 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
-button,input{font:inherit}
+button,input,select{font:inherit}
 button{border:0;color:var(--text);background:var(--panel2);border-radius:12px;min-height:44px}
 button:active{transform:scale(.98)}
 #app{height:100dvh;display:grid;grid-template-rows:auto 1fr auto auto auto;padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));gap:7px}
@@ -57,6 +57,7 @@ header .title{min-width:0;text-align:center;font-weight:700;white-space:nowrap;o
 .frameThumb canvas{width:100%;height:100%;image-rendering:pixelated}
 .frameThumb b{position:absolute;left:5px;top:3px;font-size:11px;background:#0008;padding:1px 5px;border-radius:6px}
 textarea{width:100%;min-height:140px;background:#0d1015;color:var(--text);border:1px solid #394150;border-radius:12px;padding:10px}
+.fieldControl{width:100%;height:44px;background:#0d1015;color:var(--text);border:1px solid #394150;border-radius:10px;padding:0 10px}
 .small{font-size:12px;color:var(--muted)}
 hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 .selbar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:none;gap:6px;background:#111d;padding:6px;border-radius:14px;z-index:4;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 16px)}
@@ -73,7 +74,7 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 <div id="app">
 <header>
   <button id="menuBtn" class="icon">☰</button>
-  <div class="title" id="projectTitle">DotSprite</div>
+  <div class="title" id="projectTitle" role="button" tabindex="0">untitled</div>
   <button id="undoBtn" class="icon">↶</button>
   <button id="redoBtn" class="icon">↷</button>
 </header>
@@ -114,6 +115,15 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button class="layer active" data-layer="1"><span class="vis">●</span> MAIN</button>
   <button class="layer" data-layer="2"><span class="vis">●</span> FG</button>
 </div>
+</div>
+
+<div id="projectNameSheet" class="sheet">
+  <h3>プロジェクト名</h3>
+  <input id="projectNameInput" class="fieldControl" type="text" autocomplete="off">
+  <div class="row" style="margin-top:10px">
+    <button id="projectNameApply">決定</button>
+    <button class="closeSheet">キャンセル</button>
+  </div>
 </div>
 
 <div id="menuSheet" class="sheet">
@@ -199,13 +209,33 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 </div>
 
 <div id="exportSheet" class="sheet">
-  <h3>書き出し</h3>
-  <div class="row">
-    <button id="exportSprite">スプライトシートPNG</button>
-    <button id="exportFrame">現在フレームPNG</button>
+  <h3>PNG書き出し</h3>
+  <div>
+    <label class="small" for="exportType">種類</label>
+    <select id="exportType" class="fieldControl">
+      <option value="frame">現在フレーム</option>
+      <option value="sprite">スプライトシート</option>
+    </select>
   </div>
+  <div style="margin-top:10px">
+    <label class="small" for="exportName">ファイル名</label>
+    <input id="exportName" class="fieldControl" type="text" autocomplete="off">
+    <div class="small" style="margin-top:4px">拡張子 .png は自動で付与されます。</div>
+  </div>
+  <div style="margin-top:10px">
+    <label class="small" for="exportScale">倍率</label>
+    <select id="exportScale" class="fieldControl">
+      <option value="1">1×</option>
+      <option value="2">2×</option>
+      <option value="4">4×</option>
+      <option value="8">8×</option>
+      <option value="16">16×</option>
+    </select>
+  </div>
+  <p id="exportSize" style="margin:12px 0">出力サイズ: 16 × 16 px</p>
   <p class="small">スプライトシートは全フレームを横一列に並べます。</p>
-  <button class="closeSheet" style="width:100%">閉じる</button>
+  <button id="exportPng" style="width:100%">PNG書き出し</button>
+  <button class="closeSheet" style="width:100%;margin-top:8px">閉じる</button>
 </div>
 
 <div id="codeSheet" class="sheet">
@@ -244,8 +274,12 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 
+const SAVE_DATA_VERSION = 2;
+const LOCAL_STORAGE_KEY = "pixlet-mobile-v2";
+const SAVE_CODE_PREFIX = "PX2:";
+
 const DEFAULT = {
-  version:1,width:16,height:16,
+  version:SAVE_DATA_VERSION,projectName:"untitled",width:16,height:16,
   palette:["transparent","#17191f","#f4f4f4","#e05a47","#e6b84f","#5a8dee","#5ec27f","#9b6fe3"],
   frames:[], activeFrame:0, activeLayer:1, activeColor:1,
   layerVisible:[true,true,true]
@@ -271,6 +305,7 @@ function makeLayer(w,h){ return new Uint8Array(w*h); }
 function makeFrame(w,h){ return {layers:[makeLayer(w,h),makeLayer(w,h),makeLayer(w,h)]}; }
 
 function normalizeLoaded(obj){
+  obj.projectName = typeof obj.projectName==="string" ? obj.projectName : "untitled";
   obj.frames = obj.frames.map(f => ({layers:f.layers.map(a => Uint8Array.from(a))}));
   obj.activeFrame = Math.min(obj.activeFrame||0,obj.frames.length-1);
   obj.activeLayer = obj.activeLayer ?? 1;
@@ -285,18 +320,19 @@ function normalizeLoaded(obj){
 }
 function serialize(){
   return {
-    version:1,width:state.width,height:state.height,palette:state.palette,
+    version:SAVE_DATA_VERSION,projectName:state.projectName,
+    width:state.width,height:state.height,palette:state.palette,
     frames:state.frames.map(f=>({layers:f.layers.map(a=>Array.from(a))})),
     activeFrame:state.activeFrame,activeLayer:state.activeLayer,activeColor:state.activeColor,
     layerVisible:state.layerVisible
   };
 }
 function saveLocal(){
-  try{ localStorage.setItem("dotsprite-mobile-v1", JSON.stringify(serialize())); }catch(e){}
+  try{ localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(serialize())); }catch(e){}
 }
 function loadLocal(){
   try{
-    const x=localStorage.getItem("dotsprite-mobile-v1");
+    const x=localStorage.getItem(LOCAL_STORAGE_KEY);
     return x?normalizeLoaded(JSON.parse(x)):null;
   }catch(e){return null}
 }
@@ -305,9 +341,18 @@ function pushUndo(){
   if(undo.length>40) undo.shift();
   redo.length=0;
 }
+function finishProjectStateChange(){
+  resetTransientEditState();
+  saveLocal();
+  fitCanvas();
+  syncUI();
+}
+function replaceProjectState(nextState){
+  state=nextState;
+  finishProjectStateChange();
+}
 function restore(raw){
-  state=normalizeLoaded(JSON.parse(raw));
-  selection=null; syncUI(); fitCanvas(); render(); saveLocal();
+  replaceProjectState(normalizeLoaded(JSON.parse(raw)));
 }
 function toast(t){
   const el=$("#toast"); el.textContent=t; el.classList.add("show");
@@ -329,13 +374,21 @@ function rgba(hex,a=1){
   const n=parseInt(hex.slice(1),16);
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
+function getVisibleCompositeColor(frame,x,y){
+  let color=0;
+  for(let layerIndex=0;layerIndex<3;layerIndex++){
+    if(!state.layerVisible[layerIndex])continue;
+    const value=frame.layers[layerIndex][idx(x,y)];
+    if(value)color=value;
+  }
+  return color;
+}
 function drawComposite(frameIndex,alpha=1,tint=null){
   if(frameIndex<0||frameIndex>=state.frames.length) return;
   const f=state.frames[frameIndex];
   for(let y=0;y<state.height;y++){
     for(let x=0;x<state.width;x++){
-      let c=0;
-      for(let l=0;l<3;l++){ if(!state.layerVisible[l]) continue; const v=f.layers[l][y*state.width+x]; if(v)c=v; }
+      const c=getVisibleCompositeColor(f,x,y);
       if(c){
         ctx.globalAlpha=alpha;
         ctx.fillStyle=tint || state.palette[c];
@@ -374,14 +427,8 @@ function render(){
     ctx.strokeRect(offsetX+x*zoom+1,offsetY+y*zoom+1,w*zoom-2,h*zoom-2);
     ctx.setLineDash([]);
   }
-  $("#selbar").classList.toggle("show",!!selection);
-  $$(".layer").forEach(b=>{
-    const li=+b.dataset.layer;
-    b.disabled=!!selection;
-    b.style.opacity=selection?".45":(state.layerVisible[li]?"1":".55");
-    const vis=b.querySelector(".vis");
-    if(vis)vis.textContent=state.layerVisible[li]?"●":"○";
-  });
+  syncSelectionControls();
+  syncLayerControls();
 }
 function screenToCell(clientX,clientY){
   const r=wrap.getBoundingClientRect();
@@ -426,13 +473,11 @@ function beginAction(cell){
     if(selection){
       if(cellInSelection(cell)){
         ensureSelectionBuffer();
-        selectionDrag={lastX:cell.x,lastY:cell.y};
+        selectionDrag={lastX:cell.x,lastY:cell.y,historyRecorded:false};
         drawing=true;
       } else {
-        selection=null;
-        selectionDrag=null;
-        selectStart=null;
-        drawing=false;
+        clearSelectionState();
+        resetDrawingState();
         render();
       }
     } else {
@@ -451,6 +496,12 @@ function moveAction(cell){
       const dx=cell.x-selectionDrag.lastX;
       const dy=cell.y-selectionDrag.lastY;
       if(dx||dy){
+        // Record the pre-drag pixels once, immediately before the first real move.
+        // A tap creates no history, and later pointermove events stay in this Undo unit.
+        if(!selectionDrag.historyRecorded){
+          pushUndo();
+          selectionDrag.historyRecorded=true;
+        }
         ensureSelectionBuffer();
         clearSelectionFootprint();
         selection.x+=dx;
@@ -467,7 +518,7 @@ function moveAction(cell){
   }
 }
 function endAction(){
-  if(drawing){drawing=false;lastCell=null;saveLocal();}
+  if(drawing){resetDrawingState();saveLocal();}
   selectionDrag=null;
   selectStart=null;
 }
@@ -560,8 +611,24 @@ let pointers=new Map(), pinchStart=null;
 let canvasLongTimer=null, pendingPointer=null, longPressTriggered=false;
 const LONG_PRESS_MS=650, LONG_PRESS_MOVE_PX=10;
 
+function resetDrawingState(){
+  drawing=false;
+  lastCell=null;
+}
+function clearSelectionState(){
+  selection=null;
+  selectionDrag=null;
+  selectStart=null;
+}
 function cancelCanvasLongPress(){
   if(canvasLongTimer){clearTimeout(canvasLongTimer);canvasLongTimer=null;}
+}
+function resetTransientEditState(){
+  resetDrawingState();
+  clearSelectionState();
+  pendingPointer=null;
+  longPressTriggered=false;
+  cancelCanvasLongPress();
 }
 function pickAtCell(cell){
   if(!cell)return;
@@ -588,7 +655,7 @@ wrap.addEventListener("pointerdown",e=>{
   if(pointers.size===2){
     cancelCanvasLongPress();
     pendingPointer=null;
-    drawing=false;
+    resetDrawingState();
     const ps=[...pointers.values()];
     const mid={x:(ps[0].x+ps[1].x)/2,y:(ps[0].y+ps[1].y)/2};
     pinchStart={
@@ -607,7 +674,7 @@ wrap.addEventListener("pointerdown",e=>{
     if(!cell)return;
     longPressTriggered=true;
     pendingPointer=null;
-    drawing=false;
+    resetDrawingState();
     selectStart=null;
     pickAtCell(cell);
     render();
@@ -686,10 +753,10 @@ wrap.addEventListener("pointerup",e=>{
 
 wrap.addEventListener("pointercancel",e=>{
   pointers.delete(e.pointerId);
+  if(pointers.size<2)pinchStart=null;
   cancelCanvasLongPress();
   pendingPointer=null;
   longPressTriggered=false;
-  if(pointers.size<2)pinchStart=null;
   endAction();
 });
 
@@ -710,15 +777,22 @@ function startPlaybackTimer(){
   },PLAY_SPEEDS[playSpeedIndex].ms);
 }
 
+function cloneFrame(frame){
+  return {layers:frame.layers.map(layer=>Uint8Array.from(layer))};
+}
+function finishFrameChange(){
+  // Frame-local selection buffers and pending pointer edits must never cross frames.
+  resetTransientEditState();
+  saveLocal();
+  syncUI();
+}
 function setActiveFrame(i){
   stopPlayback();
   const next=Math.max(0,Math.min(state.frames.length-1,i));
   if(next!==state.activeFrame){
     state.activeFrame=next;
-    selection=null;
-    selectionDrag=null;
-    selectStart=null;
-    saveLocal();
+    finishFrameChange();
+    return;
   }
   syncUI();
 }
@@ -728,42 +802,73 @@ function stepFrame(delta){
   const count=state.frames.length;
   if(count<1)return;
   const next=(state.activeFrame+delta+count)%count;
-
-  // Never carry transient selection/edit state across frames.
-  drawing=false;
-  lastCell=null;
-  pendingPointer=null;
-  selection=null;
-  selectionDrag=null;
-  selectStart=null;
-  cancelCanvasLongPress();
-
   state.activeFrame=next;
-  saveLocal();
-
-  // Update only the controls that actually depend on the active frame,
-  // then redraw the canvas immediately.
-  $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
-  $("#prevFrame").disabled=false;
-  $("#nextFrame").disabled=false;
-  $("#prevFrame").style.opacity="1";
-  $("#nextFrame").style.opacity="1";
-  renderFrameGrid();
-  render();
+  finishFrameChange();
 }
 
-function syncUI(){
+function duplicateCurrentFrame(){
+  stopPlayback();
+  pushUndo();
+  const copy=cloneFrame(state.frames[state.activeFrame]);
+  state.frames.splice(state.activeFrame+1,0,copy);
+  state.activeFrame++;
+  finishFrameChange();
+}
+
+function addEmptyFrame(){
+  stopPlayback();
+  pushUndo();
+  state.frames.splice(state.activeFrame+1,0,makeFrame(state.width,state.height));
+  state.activeFrame++;
+  finishFrameChange();
+}
+
+function deleteCurrentFrame(){
+  stopPlayback();
+  if(state.frames.length===1)return toast("最後の1枚は削除できません");
+  pushUndo();
+  state.frames.splice(state.activeFrame,1);
+  state.activeFrame=Math.min(state.activeFrame,state.frames.length-1);
+  finishFrameChange();
+}
+
+function moveCurrentFrame(delta){
+  stopPlayback();
+  const from=state.activeFrame;
+  const to=from+delta;
+  if(to<0||to>=state.frames.length)return;
+  pushUndo();
+  [state.frames[from],state.frames[to]]=[state.frames[to],state.frames[from]];
+  state.activeFrame=to;
+  finishFrameChange();
+}
+
+function syncFrameControls(){
   $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
   $("#prevFrame").disabled=false;
   $("#nextFrame").disabled=false;
   $("#prevFrame").style.opacity="1";
   $("#nextFrame").style.opacity="1";
+}
+function syncProjectName(){
+  const title=$("#projectTitle");
+  title.textContent=state.projectName;
+  title.title=state.projectName;
+}
+function syncPlaybackControls(){
   $("#onionBtn").classList.toggle("active",onion);
   $("#onionBtn").style.outline=onion?"2px solid var(--accent)":"none";
   $("#onionBtn").style.background=onion?"#2e3c54":"var(--panel2)";
   $("#speedBtn").textContent=PLAY_SPEEDS[playSpeedIndex].label;
   $("#speedBtn").title=`再生速度: ${PLAY_SPEEDS[playSpeedIndex].label}`;
+}
+function syncToolControls(){
   $$(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));
+}
+function syncSelectionControls(){
+  $("#selbar").classList.toggle("show",!!selection);
+}
+function syncLayerControls(){
   $$(".layer").forEach(b=>{
     const li=+b.dataset.layer;
     b.classList.toggle("active",li===state.activeLayer);
@@ -772,9 +877,20 @@ function syncUI(){
     const vis=b.querySelector(".vis");
     if(vis)vis.textContent=state.layerVisible[li]?"●":"○";
   });
+}
+function syncUI(){
+  syncProjectName();
+  syncFrameControls();
+  syncPlaybackControls();
+  syncToolControls();
+  syncSelectionControls();
+  syncLayerControls();
   renderPalette();
   renderFrameGrid();
   render();
+}
+function cancelPaletteLongPress(){
+  if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
 }
 function renderPalette(){
   const p=$("#palette");p.innerHTML="";
@@ -783,12 +899,13 @@ function renderPalette(){
     if(i>0)b.style.background=c;
     b.innerHTML=`<span>${i}</span>`;
     b.addEventListener("pointerdown",()=>{
+      cancelPaletteLongPress();
       longPressMoved=false;longPressIndex=i;
       if(i>0)longPressTimer=setTimeout(()=>{navigator.vibrate?.(20);openColor(i)},650);
     });
-    b.addEventListener("pointermove",()=>{longPressMoved=true;clearTimeout(longPressTimer)});
+    b.addEventListener("pointermove",()=>{longPressMoved=true;cancelPaletteLongPress()});
     b.addEventListener("pointerup",()=>{
-      clearTimeout(longPressTimer);
+      cancelPaletteLongPress();
       if(!longPressMoved){state.activeColor=i;saveLocal();renderPalette();}
     });
     p.appendChild(b);
@@ -900,11 +1017,32 @@ $("#colorApply").onclick=()=>{
 
 function openSheet(id){closeSheets();$(id).classList.add("open")}
 function closeSheets(){$$(".sheet").forEach(s=>s.classList.remove("open"))}
+function openProjectNameSheet(){
+  $("#projectNameInput").value=state.projectName;
+  openSheet("#projectNameSheet");
+  $("#projectNameInput").focus();
+}
 $$(".closeSheet").forEach(b=>b.onclick=closeSheets);
 $("#menuBtn").onclick=()=>openSheet("#menuSheet");
+$("#projectTitle").onclick=openProjectNameSheet;
+$("#projectTitle").addEventListener("keydown",e=>{
+  if(e.key!=="Enter"&&e.key!==" ")return;
+  e.preventDefault();
+  openProjectNameSheet();
+});
+$("#projectNameApply").onclick=()=>{
+  const nextName=$("#projectNameInput").value;
+  if(nextName!==state.projectName){
+    pushUndo();
+    state.projectName=nextName;
+    saveLocal();
+    syncProjectName();
+  }
+  closeSheets();
+};
 $("#framesBtn").onclick=()=>{stopPlayback();openSheet("#framesSheet")};
 $("#frameInfo").onclick=()=>{stopPlayback();openSheet("#framesSheet")};
-$("#exportBtn").onclick=()=>openSheet("#exportSheet");
+$("#exportBtn").onclick=openExportSheet;
 $("#saveCodeBtn").onclick=()=>{ $("#codeArea").value=makeCode(); openSheet("#codeSheet"); };
 $("#importPngBtn").onclick=()=>openSheet("#pngSheet");
 
@@ -947,19 +1085,7 @@ $$(".layer").forEach(b=>{
 });
 $("#prevFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(-1);};
 $("#nextFrame").onclick=e=>{e.preventDefault();e.stopPropagation();stepFrame(1);};
-$("#addFrame").onclick=()=>{
-  stopPlayback();
-  pushUndo();
-  const f=state.frames[state.activeFrame];
-  const copy={layers:f.layers.map(a=>Uint8Array.from(a))};
-  state.frames.splice(state.activeFrame+1,0,copy);
-  state.activeFrame++;
-  selection=null;
-  selectionDrag=null;
-  selectStart=null;
-  saveLocal();
-  syncUI();
-};
+$("#addFrame").onclick=duplicateCurrentFrame;
 $("#onionBtn").onclick=()=>{
   stopPlayback();
   onion=!onion;
@@ -983,7 +1109,7 @@ function renderFrameGrid(){
     const c=document.createElement("canvas");c.width=state.width;c.height=state.height;
     const cx=c.getContext("2d");cx.imageSmoothingEnabled=false;
     for(let y=0;y<state.height;y++)for(let x=0;x<state.width;x++){
-      let col=0;for(let l=0;l<3;l++){if(!state.layerVisible[l])continue;const v=f.layers[l][idx(x,y)];if(v)col=v}
+      const col=getVisibleCompositeColor(f,x,y);
       if(col){cx.fillStyle=state.palette[col];cx.fillRect(x,y,1,1);}
     }
     const b=document.createElement("b");b.textContent=i+1;d.append(c,b);
@@ -991,58 +1117,11 @@ function renderFrameGrid(){
     g.appendChild(d);
   });
 }
-$("#dupFrame").onclick=()=>{
-  stopPlayback();
-  pushUndo();
-  const f=state.frames[state.activeFrame];
-  const copy={layers:f.layers.map(a=>Uint8Array.from(a))};
-  state.frames.splice(state.activeFrame+1,0,copy);
-  state.activeFrame++;
-  selection=null;
-  saveLocal();
-  syncUI();
-};
-$("#emptyFrame").onclick=()=>{
-  stopPlayback();
-  pushUndo();
-  state.frames.splice(state.activeFrame+1,0,makeFrame(state.width,state.height));
-  state.activeFrame++;
-  selection=null;
-  selectionDrag=null;
-  selectStart=null;
-  saveLocal();
-  syncUI();
-};
-$("#deleteFrame").onclick=()=>{
-  stopPlayback();
-  if(state.frames.length===1)return toast("最後の1枚は削除できません");
-  pushUndo();
-  state.frames.splice(state.activeFrame,1);
-  state.activeFrame=Math.min(state.activeFrame,state.frames.length-1);
-  selection=null;
-  saveLocal();
-  syncUI();
-};
-$("#moveFrameLeft").onclick=()=>{
-  stopPlayback();
-  const i=state.activeFrame;if(i<=0)return;
-  pushUndo();
-  [state.frames[i-1],state.frames[i]]=[state.frames[i],state.frames[i-1]];
-  state.activeFrame--;
-  selection=null;
-  saveLocal();
-  syncUI();
-};
-$("#moveFrameRight").onclick=()=>{
-  stopPlayback();
-  const i=state.activeFrame;if(i>=state.frames.length-1)return;
-  pushUndo();
-  [state.frames[i+1],state.frames[i]]=[state.frames[i],state.frames[i+1]];
-  state.activeFrame++;
-  selection=null;
-  saveLocal();
-  syncUI();
-};
+$("#dupFrame").onclick=duplicateCurrentFrame;
+$("#emptyFrame").onclick=addEmptyFrame;
+$("#deleteFrame").onclick=deleteCurrentFrame;
+$("#moveFrameLeft").onclick=()=>moveCurrentFrame(-1);
+$("#moveFrameRight").onclick=()=>moveCurrentFrame(1);
 
 $("#selectAllBtn").onclick=()=>{selection={x:0,y:0,w:state.width,h:state.height};closeSheets();render()};
 function copySelection(){
@@ -1109,40 +1188,76 @@ $("#flipSel").onclick=e=>{e.stopPropagation();flipSelection();};
 $("#copySel").onclick=e=>{e.stopPropagation();copySelection();};
 $("#cutSel").onclick=e=>{e.stopPropagation();cutSelection();};
 $("#pasteSel").onclick=e=>{e.stopPropagation();pasteSelection();};
-$("#clearSel").onclick=e=>{e.stopPropagation();selection=null;render()};
+$("#clearSel").onclick=e=>{e.stopPropagation();clearSelectionState();render()};
 
 function compositeToCanvas(frameIndex, scale=1){
   const out=document.createElement("canvas");out.width=state.width*scale;out.height=state.height*scale;
   const c=out.getContext("2d");c.imageSmoothingEnabled=false;
   const f=state.frames[frameIndex];
   for(let y=0;y<state.height;y++)for(let x=0;x<state.width;x++){
-    let col=0;for(let l=0;l<3;l++){if(!state.layerVisible[l])continue;const v=f.layers[l][idx(x,y)];if(v)col=v}
+    const col=getVisibleCompositeColor(f,x,y);
     if(col){c.fillStyle=state.palette[col];c.fillRect(x*scale,y*scale,scale,scale)}
   }
   return out;
+}
+function makeSpriteSheetCanvas(scale=1){
+  const out=document.createElement("canvas");
+  out.width=state.width*state.frames.length*scale;
+  out.height=state.height*scale;
+  const c=out.getContext("2d");
+  c.imageSmoothingEnabled=false;
+  state.frames.forEach((_,i)=>c.drawImage(compositeToCanvas(i,scale),i*state.width*scale,0));
+  return out;
+}
+function makeSafeDownloadName(rawName,extension){
+  const suffix="."+extension;
+  let base=String(rawName??"");
+  if(base.toLowerCase().endsWith(suffix))base=base.slice(0,-suffix.length);
+  base=base.replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g,"_");
+  base=base.replace(/[. ]+$/g,"");
+  base=[...base].slice(0,120).join("").replace(/[. ]+$/g,"");
+  if(!base || !base.replace(/[._\-\s]/g,""))base="untitled";
+  if(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(base))base="_"+base;
+  return base+suffix;
 }
 function downloadCanvas(c,name){
   c.toBlob(blob=>{
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   },"image/png");
 }
-$("#exportFrame").onclick=()=>downloadCanvas(compositeToCanvas(state.activeFrame),"frame.png");
-$("#exportSprite").onclick=()=>{
-  const out=document.createElement("canvas");out.width=state.width*state.frames.length;out.height=state.height;
-  const c=out.getContext("2d");c.imageSmoothingEnabled=false;
-  state.frames.forEach((_,i)=>c.drawImage(compositeToCanvas(i),i*state.width,0));
-  downloadCanvas(out,"spritesheet.png");
+function updateExportSize(){
+  const scale=Number($("#exportScale").value)||1;
+  const isSprite=$("#exportType").value==="sprite";
+  const width=state.width*(isSprite?state.frames.length:1)*scale;
+  const height=state.height*scale;
+  $("#exportSize").textContent=`出力サイズ: ${width} × ${height} px`;
+}
+function openExportSheet(){
+  $("#exportType").value="frame";
+  $("#exportName").value=state.projectName;
+  $("#exportScale").value="1";
+  updateExportSize();
+  openSheet("#exportSheet");
+}
+$("#exportType").addEventListener("change",updateExportSize);
+$("#exportScale").addEventListener("change",updateExportSize);
+$("#exportPng").onclick=()=>{
+  const scale=Number($("#exportScale").value)||1;
+  const out=$("#exportType").value==="sprite"
+    ? makeSpriteSheetCanvas(scale)
+    : compositeToCanvas(state.activeFrame,scale);
+  downloadCanvas(out,makeSafeDownloadName($("#exportName").value,"png"));
 };
 
 function makeCode(){
   const json=JSON.stringify(serialize());
   const bytes=new TextEncoder().encode(json);
   let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
-  return "PX1:"+btoa(bin);
+  return SAVE_CODE_PREFIX+btoa(bin);
 }
 function loadCode(code){
-  if(!code.startsWith("PX1:"))throw new Error("format");
-  const bin=atob(code.slice(4)),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+  if(!code.startsWith(SAVE_CODE_PREFIX))throw new Error("format");
+  const bin=atob(code.slice(SAVE_CODE_PREFIX.length)),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
   return normalizeLoaded(JSON.parse(new TextDecoder().decode(bytes)));
 }
 $("#copyCode").onclick=async()=>{
@@ -1173,13 +1288,13 @@ $("#copyCode").onclick=async()=>{
 
   toast(ok?"コピーしました":"コピーできませんでした");
 };
-$("#loadCode").onclick=()=>{try{pushUndo();state=loadCode($("#codeArea").value.trim());selection=null;saveLocal();fitCanvas();syncUI();closeSheets();toast("読み込みました")}catch(e){toast("コードを読み込めません")}};
+$("#loadCode").onclick=()=>{try{pushUndo();replaceProjectState(loadCode($("#codeArea").value.trim()));closeSheets();toast("読み込みました")}catch(e){toast("コードを読み込めません")}};
 $("#exportTxt").onclick=()=>{
   const code=$("#codeArea").value.trim() || makeCode();
   const blob=new Blob([code+"\n"],{type:"text/plain;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download="dotsprite-save.txt";
+  a.download=makeSafeDownloadName(state.projectName,"txt");
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 };
@@ -1191,11 +1306,7 @@ $("#importTxt").addEventListener("change",async e=>{
     const text=(await file.text()).trim();
     $("#codeArea").value=text;
     pushUndo();
-    state=loadCode(text);
-    selection=null;
-    saveLocal();
-    fitCanvas();
-    syncUI();
+    replaceProjectState(loadCode(text));
     closeSheets();
     toast("TXTから読み込みました");
   }catch(err){
@@ -1298,10 +1409,7 @@ $("#pngImportDo").onclick=()=>{
     state.activeFrame=0;
     state.activeLayer=1;
     state.activeColor=palette.length>1?1:0;
-    selection=null;
-    saveLocal();
-    fitCanvas();
-    syncUI();
+    finishProjectStateChange();
     closeSheets();
     toast(`${frameCount}フレーム読み込みました`);
   }catch(err){
@@ -1311,15 +1419,20 @@ $("#pngImportDo").onclick=()=>{
 
 $("#resizeBtn").onclick=()=>{
   const w=Math.max(4,Math.min(64,+$("#wInput").value||16)),h=Math.max(4,Math.min(64,+$("#hInput").value||16));
-  pushUndo();state.width=w;state.height=h;state.frames=[makeFrame(w,h)];state.activeFrame=0;selection=null;saveLocal();fitCanvas();syncUI();closeSheets();
+  pushUndo();
+  state.width=w;
+  state.height=h;
+  state.frames=[makeFrame(w,h)];
+  state.activeFrame=0;
+  state.projectName="untitled";
+  finishProjectStateChange();
+  closeSheets();
 };
 
 $("#playBtn").onclick=()=>{
   if(playing){stopPlayback();render();return;}
   if(state.frames.length<2)return toast("再生には2フレーム以上必要です");
-  selection=null;
-  selectionDrag=null;
-  selectStart=null;
+  clearSelectionState();
   playing=true;
   $("#playBtn").textContent="■";
   render();

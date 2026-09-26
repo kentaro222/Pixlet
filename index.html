@@ -48,6 +48,9 @@ header .title{min-width:0;padding-left:6px;text-align:left;font-weight:700;white
 #rectModeSheet button.active{outline:2px solid var(--accent)}
 #layers{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .layer.active{outline:2px solid var(--accent);background:#2e3c54}.layer{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+#bottomControls{height:200px}
+#normalControls{display:flex;flex-direction:column;gap:7px}
+#bottomControls.selecting #normalControls{display:none}
 .sheet{position:fixed;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));z-index:20;background:var(--panel);border-radius:18px;padding:14px;box-shadow:0 12px 60px #0008;display:none;max-height:78dvh;overflow:auto}
 .sheet.open{display:block}
 .sheet h3{margin:0 0 12px}
@@ -74,7 +77,7 @@ textarea{width:100%;min-height:140px;background:#0d1015;color:var(--text);border
 .small{font-size:12px;color:var(--muted)}
 hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 .selbar{display:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
-.selbar.show{display:grid}
+.selbar.show{display:grid;align-content:center;height:100%}
 .selbar button{min-width:0}
 .menuLabel{margin:12px 0 5px}
 .menuDisplay button{min-height:38px;padding:6px;font-size:13px}
@@ -107,6 +110,7 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <div id="crosshair"></div>
 </div>
 
+<div id="bottomControls">
 <div id="selbar" class="selbar">
   <button id="flipSel">↔</button>
   <button id="copySel">複製</button>
@@ -116,6 +120,7 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button id="clearSel">解除</button>
 </div>
 
+<div id="normalControls">
 <div id="palette"></div>
 
 <div id="tools">
@@ -133,6 +138,8 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button class="layer" data-layer="0"><span class="vis">●</span> BG</button>
   <button class="layer active" data-layer="1"><span class="vis">●</span> MAIN</button>
   <button class="layer" data-layer="2"><span class="vis">●</span> FG</button>
+</div>
+</div>
 </div>
 </div>
 
@@ -393,7 +400,7 @@ document.addEventListener("contextmenu",e=>{
   if(e.target.closest?.("button,#projectTitle,#frameInfo"))e.preventDefault();
 });
 
-const PIXLET_VERSION = "v2.8";
+const PIXLET_VERSION = "v2.9";
 document.title = `Pixlet ${PIXLET_VERSION}`;
 
 const SAVE_DATA_VERSION = 2;
@@ -504,7 +511,7 @@ function pushUndo(){
 function finishProjectStateChange(){
   resetTransientEditState();
   saveLocal();
-  fitCanvas();
+  fitEntireCanvas();
   syncUI();
 }
 function replaceProjectState(nextState){
@@ -760,6 +767,15 @@ function fitCanvas(){
   offsetX=Math.floor((r.width-state.width*zoom)/2);
   offsetY=Math.floor((r.height-state.height*zoom)/2);
 }
+function fitEntireCanvas(){
+  fitCanvas();
+  const r=wrap.getBoundingClientRect();
+  if(state.width*zoom>r.width || state.height*zoom>r.height){
+    zoom=Math.min(r.width/state.width,r.height/state.height);
+    offsetX=(r.width-state.width*zoom)/2;
+    offsetY=(r.height-state.height*zoom)/2;
+  }
+}
 function rgba(hex,a=1){
   const n=parseInt(hex.slice(1),16);
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
@@ -790,7 +806,7 @@ function drawComposite(frameIndex,alpha=1,tint=null,previewPixels=null){
   ctx.globalAlpha=1;
 }
 function render(){
-  // The selection bar participates in layout; resize the backing canvas before drawing.
+  // The lower controls swap in place; keep the backing canvas aligned with their layout.
   syncSelectionControls();
   const r=wrap.getBoundingClientRect();
   ctx.clearRect(0,0,r.width,r.height);
@@ -1440,8 +1456,9 @@ function syncCenterLineButton(){
 function syncSelectionControls(){
   const bar=$("#selbar"),visible=!!selection;
   if(bar.classList.contains("show")===visible)return;
+  $("#bottomControls").classList.toggle("selecting",visible);
   bar.classList.toggle("show",visible);
-  // Preserve zoom and offsets while the bar changes the canvas height, so pointer cells stay stable.
+  // The normal and selection controls share one height; preserve the current viewport.
   resizeCanvasViewport();
 }
 function syncLayerControls(){
@@ -1653,13 +1670,7 @@ $("#gridBtn").onclick=()=>setGridVisible(!gridVisible);
 $("#centerLineBtn").onclick=()=>setCenterLineVisible(!centerLineVisible);
 $("#fitViewBtn").onclick=()=>{
   closeSheets();
-  fitCanvas();
-  const r=wrap.getBoundingClientRect();
-  if(state.width*zoom>r.width || state.height*zoom>r.height){
-    zoom=Math.min(r.width/state.width,r.height/state.height);
-    offsetX=(r.width-state.width*zoom)/2;
-    offsetY=(r.height-state.height*zoom)/2;
-  }
+  fitEntireCanvas();
   render();
 };
 $("#newCanvasBtn").onclick=()=>{
@@ -2129,8 +2140,10 @@ $("#playBtn").onclick=()=>{
   startPlaybackTimer();
 };
 
-addEventListener("resize",()=>{fitCanvas();render()});
-fitCanvas();syncUI();
+addEventListener("resize",()=>{fitEntireCanvas();render()});
+syncUI();
+// Wait for the first layout before fitting, including a restored project's dimensions.
+requestAnimationFrame(()=>{fitEntireCanvas();render();});
 })();
 </script>
 </body>

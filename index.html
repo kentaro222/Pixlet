@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
-<title>Pixlet Mobile</title>
+<title>Pixlet</title>
 <style>
 :root{
   --bg:#111318;
@@ -20,11 +20,14 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-famil
 button,input,select{font:inherit}
 button{border:0;color:var(--text);background:var(--panel2);border-radius:12px;min-height:44px}
 button:active{transform:scale(.98)}
-#app{height:100dvh;display:grid;grid-template-rows:auto 1fr auto auto auto;padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));gap:7px}
-header{display:grid;grid-template-columns:44px 1fr 44px 44px;gap:6px;align-items:center}
-header .title{min-width:0;text-align:center;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+button,#projectTitle,#frameInfo{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
+input,textarea,select{user-select:text;-webkit-user-select:text;-webkit-touch-callout:default}
+#app{height:100dvh;display:flex;flex-direction:column;padding:max(8px,env(safe-area-inset-top)) 8px max(8px,env(safe-area-inset-bottom));gap:7px}
+#app > :not(#canvasWrap){flex-shrink:0}
+header{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px;align-items:center}
+header .title{min-width:0;padding-left:6px;text-align:left;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .icon{font-size:20px}
-#canvasWrap{position:relative;min-height:0;overflow:hidden;border-radius:16px;background:#0b0d11;touch-action:none}
+#canvasWrap{position:relative;flex:1;min-height:0;overflow:hidden;border-radius:16px;background:#0b0d11;touch-action:none}
 #view{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
 #crosshair{position:absolute;display:none;width:20px;height:20px;border:2px solid white;border-radius:4px;pointer-events:none;box-shadow:0 0 0 1px #000}
 #framebar{display:grid;grid-template-columns:38px minmax(42px,1fr) 38px 38px 38px 46px 38px;gap:4px}
@@ -42,6 +45,7 @@ header .title{min-width:0;text-align:center;font-weight:700;white-space:nowrap;o
 .swatch span{position:absolute;right:5px;bottom:2px;font-size:10px;text-shadow:0 1px 2px #000}
 #tools{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .tool.active{outline:2px solid var(--accent);background:#2e3c54}
+#rectModeSheet button.active{outline:2px solid var(--accent)}
 #layers{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .layer.active{outline:2px solid var(--accent);background:#2e3c54}.layer{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .sheet{position:fixed;left:8px;right:8px;bottom:max(8px,env(safe-area-inset-bottom));z-index:20;background:var(--panel);border-radius:18px;padding:14px;box-shadow:0 12px 60px #0008;display:none;max-height:78dvh;overflow:auto}
@@ -50,19 +54,30 @@ header .title{min-width:0;text-align:center;font-weight:700;white-space:nowrap;o
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .row>*{flex:1}
 .sheet button{padding:10px}
+.canvasScaleButton:disabled{opacity:.45}
+.paletteEntry{padding:10px 0;border-top:1px solid #343b48}
+.paletteEntryName{font-weight:700;overflow-wrap:anywhere}
+.paletteSamples{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:8px 0}
+.paletteSamples span{height:22px;border-radius:5px;border:1px solid #ffffff33}
+.paletteActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.paletteActions button{min-width:0}
 #colorPicker{width:100%;height:56px;border:0;background:none}
 #framesGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .frameThumb{aspect-ratio:1;background:#0b0d11;border-radius:10px;position:relative;overflow:hidden;border:2px solid transparent}
 .frameThumb.active{border-color:var(--accent)}
+.frameThumb.inLoop::after{content:"";position:absolute;inset:4px;border:2px solid #55a868;border-radius:6px;pointer-events:none}
+.frameThumb .loopMark{position:absolute;right:3px;bottom:3px;z-index:1;font-size:10px;background:#14291dcc;color:#c5f4d0;padding:1px 4px;border-radius:5px}
 .frameThumb canvas{width:100%;height:100%;image-rendering:pixelated}
 .frameThumb b{position:absolute;left:5px;top:3px;font-size:11px;background:#0008;padding:1px 5px;border-radius:6px}
 textarea{width:100%;min-height:140px;background:#0d1015;color:var(--text);border:1px solid #394150;border-radius:12px;padding:10px}
 .fieldControl{width:100%;height:44px;background:#0d1015;color:var(--text);border:1px solid #394150;border-radius:10px;padding:0 10px}
 .small{font-size:12px;color:var(--muted)}
 hr{border:0;border-top:1px solid #343b48;margin:14px 0}
-.selbar{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:none;gap:6px;background:#111d;padding:6px;border-radius:14px;z-index:4;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 16px)}
-.selbar.show{display:flex}
-.selbar button{min-width:42px}
+.selbar{display:none;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.selbar.show{display:grid}
+.selbar button{min-width:0}
+.menuLabel{margin:12px 0 5px}
+.menuDisplay button{min-height:38px;padding:6px;font-size:13px}
 #toast{position:fixed;left:50%;bottom:120px;transform:translateX(-50%);background:#000d;color:#fff;padding:8px 12px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:.2s;z-index:50}
 #toast.show{opacity:1}
 @media (min-width:700px){
@@ -75,21 +90,7 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 <header>
   <button id="menuBtn" class="icon">☰</button>
   <div class="title" id="projectTitle" role="button" tabindex="0">untitled</div>
-  <button id="undoBtn" class="icon">↶</button>
-  <button id="redoBtn" class="icon">↷</button>
 </header>
-
-<div id="canvasWrap">
-  <canvas id="view"></canvas>
-  <div id="crosshair"></div>
-  <div id="selbar" class="selbar">
-    <button id="flipSel">↔</button>
-    <button id="copySel">複製</button>
-    <button id="cutSel">切取</button>
-    <button id="pasteSel">貼付</button>
-    <button id="clearSel">解除</button>
-  </div>
-</div>
 
 <div id="framebar">
   <button id="prevFrame">◀</button>
@@ -101,6 +102,20 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button id="playBtn">▷</button>
 </div>
 
+<div id="canvasWrap">
+  <canvas id="view"></canvas>
+  <div id="crosshair"></div>
+</div>
+
+<div id="selbar" class="selbar">
+  <button id="flipSel">↔</button>
+  <button id="copySel">複製</button>
+  <button id="cutSel">切取</button>
+  <button id="pasteSel">貼付</button>
+  <button id="trimSel">切抜</button>
+  <button id="clearSel">解除</button>
+</div>
+
 <div id="palette"></div>
 
 <div id="tools">
@@ -108,6 +123,10 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button class="tool" data-tool="pick">◉<br><span class="small">スポイト</span></button>
   <button class="tool" data-tool="fill">▣<br><span class="small">塗り</span></button>
   <button class="tool" data-tool="select">▢<br><span class="small">選択</span></button>
+  <button class="tool" data-tool="line">╱<br><span class="small">直線</span></button>
+  <button id="rectTool" class="tool" data-tool="rect"><span id="rectIcon">□</span><br><span class="small">四角形</span></button>
+  <button id="undoBtn" class="icon">↶</button>
+  <button id="redoBtn" class="icon">↷</button>
 </div>
 
 <div id="layers">
@@ -115,6 +134,15 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
   <button class="layer active" data-layer="1"><span class="vis">●</span> MAIN</button>
   <button class="layer" data-layer="2"><span class="vis">●</span> FG</button>
 </div>
+</div>
+
+<div id="rectModeSheet" class="sheet">
+  <h3>四角形</h3>
+  <div class="row">
+    <button id="rectOutline">□ 枠線</button>
+    <button id="rectFilled">■ 塗りつぶし</button>
+  </div>
+  <button class="closeSheet" style="width:100%;margin-top:8px">キャンセル</button>
 </div>
 
 <div id="projectNameSheet" class="sheet">
@@ -129,24 +157,103 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 <div id="menuSheet" class="sheet">
   <h3>メニュー</h3>
   <div class="row">
-    <button id="framesBtn">フレーム管理</button>
-    <button id="selectAllBtn">全選択</button>
-  </div>
-  <div class="row" style="margin-top:8px">
-    <button id="exportBtn">書き出し</button>
-    <button id="saveCodeBtn">保存コード</button>
-  </div>
-  <div class="row" style="margin-top:8px">
+    <button id="exportBtn">PNG保存</button>
     <button id="importPngBtn">PNG読込</button>
   </div>
+  <p class="small menuLabel">作品管理</p>
+  <div class="row" style="margin-top:8px">
+    <button id="saveCodeBtn">保存コード</button>
+    <button id="framesBtn">フレーム管理</button>
+  </div>
+  <p class="small menuLabel">編集</p>
+  <div class="row" style="margin-top:8px">
+    <button id="paletteManageBtn">パレット管理</button>
+    <button id="canvasEditBtn">キャンバス編集</button>
+  </div>
+  <p class="small menuLabel">表示</p>
+  <div class="row menuDisplay">
+    <button id="gridBtn">グリッド線: ON</button>
+    <button id="centerLineBtn">中心線: OFF</button>
+  </div>
+  <div class="row menuDisplay" style="margin-top:6px">
+    <button id="fitViewBtn">全体表示</button>
+  </div>
   <hr>
+  <button id="newCanvasBtn" style="width:100%">新規キャンバス</button>
+  <p class="small">自動保存: localStorage。パレットは0番が透明固定、1〜7番が編集可能です。</p>
+  <button class="closeSheet" style="width:100%">閉じる</button>
+</div>
+
+<div id="newCanvasSheet" class="sheet">
+  <h3>新規キャンバス</h3>
   <div class="row">
     <label>幅<input id="wInput" type="number" min="4" max="64" value="16"></label>
     <label>高さ<input id="hInput" type="number" min="4" max="64" value="16"></label>
   </div>
-  <button id="resizeBtn" style="width:100%;margin-top:8px">新規キャンバス</button>
-  <p class="small">自動保存: localStorage。パレットは0番が透明固定、1〜7番が編集可能です。</p>
-  <button class="closeSheet" style="width:100%">閉じる</button>
+  <div class="row" style="margin-top:10px">
+    <button id="resizeBtn">作成</button>
+    <button class="closeSheet">キャンセル</button>
+  </div>
+</div>
+
+<div id="canvasEditSheet" class="sheet">
+  <h3>キャンバス編集</h3>
+  <p id="canvasEditInfo" class="small"></p>
+  <h4>キャンバスサイズ変更</h4>
+  <p class="small">正数で透明領域を追加、負数でその側から削除します。</p>
+  <div class="row">
+    <label>上<input id="editTop" class="fieldControl" type="number" step="1" value="0"></label>
+    <label>下<input id="editBottom" class="fieldControl" type="number" step="1" value="0"></label>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <label>左<input id="editLeft" class="fieldControl" type="number" step="1" value="0"></label>
+    <label>右<input id="editRight" class="fieldControl" type="number" step="1" value="0"></label>
+  </div>
+  <p id="editSizePreview" class="small"></p>
+  <button id="applyCanvasSize" style="width:100%">サイズ変更</button>
+  <hr>
+  <h4>作品を整数倍に拡大</h4>
+  <p class="small">キャンバスと全フレームのピクセル自体を拡大します。PNG書き出し倍率とは別です。</p>
+  <div class="row">
+    <button class="canvasScaleButton" data-scale="2">2×</button>
+    <button class="canvasScaleButton" data-scale="3">3×</button>
+    <button class="canvasScaleButton" data-scale="4">4×</button>
+  </div>
+  <p id="canvasScaleInfo" class="small"></p>
+  <button class="closeSheet" style="width:100%;margin-top:8px">閉じる</button>
+</div>
+
+<div id="paletteManageSheet" class="sheet">
+  <h3>パレット管理</h3>
+  <h4>標準パレット</h4>
+  <div id="palettePresets"></div>
+  <h4>マイパレット <span id="myPaletteCount" class="small"></span></h4>
+  <div id="myPaletteList"></div>
+  <button id="saveMyPalette" style="width:100%;margin-top:8px">現在のパレットを保存</button>
+  <p id="paletteLimitInfo" class="small"></p>
+  <hr>
+  <label for="paletteText" class="small">パレットテキスト</label>
+  <textarea id="paletteText" spellcheck="false" placeholder="Pixlet Palette v2&#10;Name: マイパレット1&#10;Colors: #17191F #F4F4F4 #D95757 #E58A47 #DDBB4C #55A868 #4C78A8"></textarea>
+  <button id="importPaletteText" style="width:100%;margin-top:8px">テキストを読み込んで登録</button>
+  <button class="closeSheet" style="width:100%;margin-top:8px">閉じる</button>
+</div>
+
+<div id="paletteConfirmSheet" class="sheet">
+  <h3 id="paletteConfirmTitle">確認</h3>
+  <p id="paletteConfirmMessage"></p>
+  <div class="row">
+    <button id="paletteConfirmDo">変更する</button>
+    <button id="paletteConfirmCancel">キャンセル</button>
+  </div>
+</div>
+
+<div id="paletteNameSheet" class="sheet">
+  <h3 id="paletteNameTitle">パレット名</h3>
+  <input id="paletteNameInput" class="fieldControl" type="text" autocomplete="off">
+  <div class="row" style="margin-top:10px">
+    <button id="paletteNameDo">決定</button>
+    <button id="paletteNameCancel">キャンセル</button>
+  </div>
 </div>
 
 <div id="colorSheet" class="sheet">
@@ -205,6 +312,14 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
     <button id="moveFrameLeft">← 並べ替え</button>
     <button id="moveFrameRight">並べ替え →</button>
   </div>
+  <div class="row" style="margin-top:8px">
+    <button id="setLoopStart">現在をループ開始に</button>
+    <button id="setLoopEnd">現在をループ終了に</button>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="clearLoopRange">ループ範囲を解除</button>
+  </div>
+  <p id="loopRangeInfo" class="small"></p>
   <button class="closeSheet" style="width:100%;margin-top:12px">閉じる</button>
 </div>
 
@@ -214,7 +329,8 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
     <label class="small" for="exportType">種類</label>
     <select id="exportType" class="fieldControl">
       <option value="frame">現在フレーム</option>
-      <option value="sprite">スプライトシート</option>
+      <option value="sprite">全フレーム</option>
+      <option value="loop">ループ範囲</option>
     </select>
   </div>
   <div style="margin-top:10px">
@@ -233,7 +349,7 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
     </select>
   </div>
   <p id="exportSize" style="margin:12px 0">出力サイズ: 16 × 16 px</p>
-  <p class="small">スプライトシートは全フレームを横一列に並べます。</p>
+  <p class="small">スプライトシートは選択したフレームを横一列に並べます。</p>
   <button id="exportPng" style="width:100%">PNG書き出し</button>
   <button class="closeSheet" style="width:100%;margin-top:8px">閉じる</button>
 </div>
@@ -273,24 +389,42 @@ hr{border:0;border-top:1px solid #343b48;margin:14px 0}
 (() => {
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
+document.addEventListener("contextmenu",e=>{
+  if(e.target.closest?.("button,#projectTitle,#frameInfo"))e.preventDefault();
+});
+
+const PIXLET_VERSION = "v2.8";
+document.title = `Pixlet ${PIXLET_VERSION}`;
 
 const SAVE_DATA_VERSION = 2;
 const LOCAL_STORAGE_KEY = "pixlet-mobile-v2";
-const SAVE_CODE_PREFIX = "PX2:";
+const PROJECT_TEXT_HEADER = "Pixlet Project v2";
+const GRID_SETTING_KEY = "pixlet-grid-visible";
+const CENTER_LINE_SETTING_KEY = "pixlet-center-line-visible";
+const MY_PALETTES_KEY = "pixlet-my-palettes-v1";
+const PALETTE_PRESETS = [
+  {name:"標準カラー",colors:["#17191F","#F4F4F4","#D95757","#E58A47","#DDBB4C","#55A868","#4C78A8"]},
+  {name:"グレースケール",colors:["#000000","#2B2B2B","#555555","#808080","#AAAAAA","#D4D4D4","#FFFFFF"]}
+];
 
 const DEFAULT = {
   version:SAVE_DATA_VERSION,projectName:"untitled",width:16,height:16,
-  palette:["transparent","#17191f","#f4f4f4","#e05a47","#e6b84f","#5a8dee","#5ec27f","#9b6fe3"],
+  palette:["transparent",...PALETTE_PRESETS[0].colors],
   frames:[], activeFrame:0, activeLayer:1, activeColor:1,
+  loopStart:null,loopEnd:null,
   layerVisible:[true,true,true]
 };
 
 let state = loadLocal() || structuredClone(DEFAULT);
 if(!state.frames.length) state.frames=[makeFrame(state.width,state.height)];
-let tool="pen", zoom=1, offsetX=0, offsetY=0, drawing=false, lastCell=null, selectionDrag=null;
+let tool="pen", zoom=1, offsetX=0, offsetY=0, drawing=false, lastCell=null, selectionDrag=null, shapeDraft=null;
 let undo=[], redo=[], selection=null, selectStart=null, selectionClipboard=null, playing=false, playTimer=null;
-let longPressTimer=null,longPressMoved=false,longPressIndex=-1;
+let editingColorIndex=-1;
 let onion=false;
+let rectFilled=false;
+let gridVisible=loadGridVisible();
+let centerLineVisible=loadCenterLineVisible();
+let myPalettes=loadMyPalettes();
 const PLAY_SPEEDS=[
   {label:"遅", ms:420},
   {label:"普", ms:240},
@@ -307,6 +441,13 @@ function makeFrame(w,h){ return {layers:[makeLayer(w,h),makeLayer(w,h),makeLayer
 function normalizeLoaded(obj){
   obj.projectName = typeof obj.projectName==="string" ? obj.projectName : "untitled";
   obj.frames = obj.frames.map(f => ({layers:f.layers.map(a => Uint8Array.from(a))}));
+  // Invalid or outdated indices must never reach playback or sprite export.
+  const last=obj.frames.length-1;
+  obj.loopStart=Number.isInteger(obj.loopStart) && obj.loopStart>=0 && obj.loopStart<=last ? obj.loopStart : null;
+  obj.loopEnd=Number.isInteger(obj.loopEnd) && obj.loopEnd>=0 && obj.loopEnd<=last ? obj.loopEnd : null;
+  if(obj.loopStart!==null && obj.loopEnd!==null && obj.loopStart>obj.loopEnd){
+    [obj.loopStart,obj.loopEnd]=[obj.loopEnd,obj.loopStart];
+  }
   obj.activeFrame = Math.min(obj.activeFrame||0,obj.frames.length-1);
   obj.activeLayer = obj.activeLayer ?? 1;
   obj.activeColor = obj.activeColor ?? 1;
@@ -324,6 +465,7 @@ function serialize(){
     width:state.width,height:state.height,palette:state.palette,
     frames:state.frames.map(f=>({layers:f.layers.map(a=>Array.from(a))})),
     activeFrame:state.activeFrame,activeLayer:state.activeLayer,activeColor:state.activeColor,
+    loopStart:state.loopStart,loopEnd:state.loopEnd,
     layerVisible:state.layerVisible
   };
 }
@@ -335,6 +477,24 @@ function loadLocal(){
     const x=localStorage.getItem(LOCAL_STORAGE_KEY);
     return x?normalizeLoaded(JSON.parse(x)):null;
   }catch(e){return null}
+}
+function loadGridVisible(){
+  try{return localStorage.getItem(GRID_SETTING_KEY)!=="off"}catch(e){return true}
+}
+function setGridVisible(visible){
+  gridVisible=visible;
+  try{localStorage.setItem(GRID_SETTING_KEY,visible?"on":"off")}catch(e){}
+  syncGridButton();
+  render();
+}
+function loadCenterLineVisible(){
+  try{return localStorage.getItem(CENTER_LINE_SETTING_KEY)==="on"}catch(e){return false}
+}
+function setCenterLineVisible(visible){
+  centerLineVisible=visible;
+  try{localStorage.setItem(CENTER_LINE_SETTING_KEY,visible?"on":"off")}catch(e){}
+  syncCenterLineButton();
+  render();
 }
 function pushUndo(){
   undo.push(JSON.stringify(serialize()));
@@ -359,12 +519,242 @@ function toast(t){
   setTimeout(()=>el.classList.remove("show"),1200);
 }
 
-function fitCanvas(){
+const MAX_CANVAS_SIZE=64;
+function canvasMargins(){
+  const read=id=>$("#"+id).value.trim()===""?0:Number($("#"+id).value);
+  return {top:read("editTop"),bottom:read("editBottom"),left:read("editLeft"),right:read("editRight")};
+}
+function updateCanvasEditControls(){
+  $("#canvasEditInfo").textContent=`現在: ${state.width} × ${state.height} px`;
+  const {top,bottom,left,right}=canvasMargins();
+  const width=state.width+left+right,height=state.height+top+bottom;
+  $("#editSizePreview").textContent=[top,bottom,left,right].every(Number.isInteger)
+    ? `${state.width} × ${state.height} → ${width} × ${height} px${width<1||height<1||width>MAX_CANVAS_SIZE||height>MAX_CANVAS_SIZE?"（1〜64 pxの範囲外）":""}`
+    : "上下左右には整数pxを入力してください";
+  const unavailable=[];
+  $$(".canvasScaleButton").forEach(button=>{
+    const scale=Number(button.dataset.scale);
+    button.disabled=state.width*scale>MAX_CANVAS_SIZE || state.height*scale>MAX_CANVAS_SIZE;
+    button.title=button.disabled?"拡大後の幅または高さが64pxを超えます":"";
+    if(button.disabled)unavailable.push(`${scale}×`);
+  });
+  $("#canvasScaleInfo").textContent=unavailable.length
+    ? `上限64px。${unavailable.join("・")}はサイズ超過のため実行できません。` : "上限64px以内で拡大できます。";
+}
+function transformCanvas(width,height,plot){
+  const oldWidth=state.width,oldHeight=state.height;
+  const transformed=state.frames.map(frame=>({layers:frame.layers.map(source=>{
+    const target=makeLayer(width,height);
+    for(let y=0;y<oldHeight;y++)for(let x=0;x<oldWidth;x++){
+      const color=source[y*oldWidth+x];
+      if(color)plot(x,y,color,target,width,height);
+    }
+    return target;
+  })}));
+  const changed=width!==oldWidth || height!==oldHeight || transformed.some((frame,fi)=>
+    frame.layers.some((layer,li)=>layer.some((color,i)=>color!==state.frames[fi].layers[li][i])));
+  if(!changed){toast("変更はありません");return false;}
+
+  stopPlayback();
+  // The selection buffer is tied to the old coordinate system; finish pointer edits before replacing layers.
+  resetTransientEditState();
+  pointers.clear();pinchStart=null;
+  pushUndo();
+  state.width=width;state.height=height;state.frames=transformed;
+  finishProjectStateChange();
+  return true;
+}
+function changeCanvasSize(){
+  const {top,bottom,left,right}=canvasMargins();
+  if(![top,bottom,left,right].every(Number.isInteger))return toast("上下左右には整数pxを入力してください");
+  const width=state.width+left+right,height=state.height+top+bottom;
+  if(width<1||height<1||width>MAX_CANVAS_SIZE||height>MAX_CANVAS_SIZE){
+    return toast("変更後のキャンバスサイズは1〜64pxにしてください");
+  }
+  if(!top&&!bottom&&!left&&!right)return toast("変更するサイズがありません");
+  if(transformCanvas(width,height,(x,y,color,target,newWidth,newHeight)=>{
+    const tx=x+left,ty=y+top;
+    if(tx>=0&&ty>=0&&tx<newWidth&&ty<newHeight)target[ty*newWidth+tx]=color;
+  })){
+    ["editTop","editBottom","editLeft","editRight"].forEach(id=>$("#"+id).value="0");
+    updateCanvasEditControls();
+  }
+}
+function scaleArtwork(scale){
+  if(![2,3,4].includes(scale))return;
+  const width=state.width*scale,height=state.height*scale;
+  if(width>MAX_CANVAS_SIZE||height>MAX_CANVAS_SIZE)return toast("拡大後の幅または高さが64pxを超えます");
+  transformCanvas(width,height,(x,y,color,target,newWidth)=>{
+    for(let dy=0;dy<scale;dy++)for(let dx=0;dx<scale;dx++){
+      target[(y*scale+dy)*newWidth+x*scale+dx]=color;
+    }
+  });
+}
+
+function validPaletteColors(colors){
+  return Array.isArray(colors) && colors.length===7 && colors.every(c=>typeof c==="string" && /^#[0-9a-f]{6}$/i.test(c));
+}
+function loadMyPalettes(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(MY_PALETTES_KEY) || "[]");
+    if(!Array.isArray(saved))return [];
+    return saved.slice(0,7).filter(p=>p && typeof p.name==="string" && p.name.trim() && validPaletteColors(p.colors))
+      .map(p=>({name:p.name,colors:p.colors.map(c=>c.toUpperCase())}));
+  }catch(e){return []}
+}
+function saveMyPalettes(next){
+  try{
+    localStorage.setItem(MY_PALETTES_KEY,JSON.stringify(next));
+    myPalettes=next;
+    renderPaletteManagement();
+    return true;
+  }catch(e){toast("マイパレットを保存できません");return false}
+}
+function paletteText(palette){
+  return `Pixlet Palette v2\nName: ${palette.name}\nColors: ${palette.colors.map(c=>c.toUpperCase()).join(" ")}`;
+}
+function parsePaletteText(text){
+  const lines=text.trim().split(/\r?\n/);
+  if(lines.length!==3 || lines[0]!=="Pixlet Palette v2" ||
+     !lines[1].startsWith("Name: ") || !lines[2].startsWith("Colors: "))return null;
+  const name=lines[1].slice("Name: ".length).trim();
+  const colors=lines[2].slice("Colors: ".length).trim().split(/[ \t]+/);
+  if(!name || !validPaletteColors(colors))return null;
+  return {name,colors:colors.map(c=>c.toUpperCase())};
+}
+function paletteSamples(colors){
+  const row=document.createElement("div");row.className="paletteSamples";
+  colors.forEach(color=>{
+    const sample=document.createElement("span");
+    sample.style.background=color;
+    sample.title=color;
+    row.appendChild(sample);
+  });
+  return row;
+}
+function paletteAction(label,action){
+  const button=document.createElement("button");
+  button.textContent=label;
+  button.onclick=action;
+  return button;
+}
+function askPaletteConfirmation(title,message,label,action){
+  $("#paletteConfirmTitle").textContent=title;
+  $("#paletteConfirmMessage").textContent=message;
+  $("#paletteConfirmDo").textContent=label;
+  $("#paletteConfirmDo").onclick=action;
+  openSheet("#paletteConfirmSheet");
+}
+function applyPalette(palette){
+  askPaletteConfirmation("パレットを変更", "パレットを変更すると、現在の作品の色も変わります。このパレットに変更しますか？", "変更する",()=>{
+    const next=["transparent",...palette.colors];
+    if(next.some((color,i)=>color.toUpperCase()!==state.palette[i].toUpperCase())){
+      pushUndo();
+      state.palette=next;
+      saveLocal();
+      syncUI();
+    }
+    openPaletteManagement();
+    toast("パレットを変更しました");
+  });
+}
+function openPaletteName(title,value,action){
+  $("#paletteNameTitle").textContent=title;
+  $("#paletteNameInput").value=value;
+  $("#paletteNameDo").onclick=()=>{
+    const name=$("#paletteNameInput").value.trim();
+    if(!name)return toast("パレット名を入力してください");
+    if(action(name))openPaletteManagement();
+  };
+  openSheet("#paletteNameSheet");
+  $("#paletteNameInput").focus();
+}
+function nextMyPaletteName(){
+  for(let i=1;i<=7;i++){
+    const name=`マイパレット${i}`;
+    if(!myPalettes.some(p=>p.name===name))return name;
+  }
+  return "マイパレット";
+}
+function addMyPalette(){
+  if(myPalettes.length>=7)return toast("最大7件です。既存パレットを上書きまたは削除してください");
+  openPaletteName("現在のパレットを保存",nextMyPaletteName(),name=>{
+    if(myPalettes.length>=7){toast("最大7件です。既存パレットを上書きまたは削除してください");return false;}
+    return saveMyPalettes([...myPalettes,{name,colors:state.palette.slice(1).map(c=>c.toUpperCase())}]);
+  });
+}
+async function copyPalette(palette){
+  const text=paletteText(palette);
+  const field=$("#paletteText");field.value=text;
+  let copied=false;
+  try{
+    if(navigator.clipboard && window.isSecureContext){
+      await navigator.clipboard.writeText(text);
+      copied=true;
+    }
+  }catch(e){}
+  if(!copied){
+    try{
+      field.focus();field.select();field.setSelectionRange(0,field.value.length);
+      copied=document.execCommand("copy");
+      field.setSelectionRange(0,0);field.blur();
+    }catch(e){}
+  }
+  toast(copied?"パレットテキストをコピーしました":"コピーできませんでした");
+}
+function renderPaletteManagement(){
+  const presets=$("#palettePresets"),mine=$("#myPaletteList");
+  presets.innerHTML="";mine.innerHTML="";
+  PALETTE_PRESETS.forEach(p=>{
+    const entry=document.createElement("div");entry.className="paletteEntry";
+    const name=document.createElement("div");name.className="paletteEntryName";name.textContent=p.name;
+    const actions=document.createElement("div");actions.className="paletteActions";
+    actions.append(paletteAction("適用",()=>applyPalette(p)),paletteAction("テキストをコピー",()=>copyPalette(p)));
+    entry.append(name,paletteSamples(p.colors),actions);presets.appendChild(entry);
+  });
+  myPalettes.forEach((p,index)=>{
+    const entry=document.createElement("div");entry.className="paletteEntry";
+    const name=document.createElement("div");name.className="paletteEntryName";name.textContent=p.name;
+    const actions=document.createElement("div");actions.className="paletteActions";
+    actions.append(
+      paletteAction("適用",()=>applyPalette(p)),
+      paletteAction("名前変更",()=>openPaletteName("パレット名を変更",p.name,newName=>{
+        const next=myPalettes.slice();next[index]={...p,name:newName};return saveMyPalettes(next);
+      })),
+      paletteAction("現在の色で上書き",()=>askPaletteConfirmation("マイパレットを上書き",`「${p.name}」の7色を現在のパレットで上書きしますか？`,"上書きする",()=>{
+        const next=myPalettes.slice();next[index]={...p,colors:state.palette.slice(1).map(c=>c.toUpperCase())};
+        if(saveMyPalettes(next)){openPaletteManagement();toast("上書きしました");}
+      })),
+      paletteAction("削除",()=>askPaletteConfirmation("マイパレットを削除",`「${p.name}」を削除しますか？`,"削除する",()=>{
+        if(saveMyPalettes(myPalettes.filter((_,i)=>i!==index))){openPaletteManagement();toast("削除しました");}
+      })),
+      paletteAction("テキストをコピー",()=>copyPalette(p))
+    );
+    entry.append(name,paletteSamples(p.colors),actions);mine.appendChild(entry);
+  });
+  $("#myPaletteCount").textContent=`${myPalettes.length} / 7`;
+  $("#saveMyPalette").disabled=myPalettes.length>=7;
+  $("#saveMyPalette").title=myPalettes.length>=7?"最大7件です。既存パレットを上書きまたは削除してください":"";
+  $("#paletteLimitInfo").textContent=myPalettes.length>=7?"最大7件です。既存パレットを上書きまたは削除してください。":"";
+}
+function openPaletteManagement(){
+  renderPaletteManagement();
+  openSheet("#paletteManageSheet");
+}
+
+function resizeCanvasViewport(){
   const r=wrap.getBoundingClientRect();
-  canvas.width=Math.floor(r.width*devicePixelRatio);
-  canvas.height=Math.floor(r.height*devicePixelRatio);
+  const width=Math.floor(r.width*devicePixelRatio),height=Math.floor(r.height*devicePixelRatio);
+  if(canvas.width===width && canvas.height===height)return;
+  canvas.width=width;
+  canvas.height=height;
   canvas.style.width=r.width+"px"; canvas.style.height=r.height+"px";
   ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+}
+function fitCanvas(){
+  syncSelectionControls();
+  resizeCanvasViewport();
+  const r=wrap.getBoundingClientRect();
   const z=Math.floor(Math.min((r.width-20)/state.width,(r.height-20)/state.height));
   zoom=Math.max(4,z);
   offsetX=Math.floor((r.width-state.width*zoom)/2);
@@ -374,21 +764,22 @@ function rgba(hex,a=1){
   const n=parseInt(hex.slice(1),16);
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
 }
-function getVisibleCompositeColor(frame,x,y){
+function getVisibleCompositeColor(frame,x,y,previewPixels=null){
   let color=0;
   for(let layerIndex=0;layerIndex<3;layerIndex++){
     if(!state.layerVisible[layerIndex])continue;
-    const value=frame.layers[layerIndex][idx(x,y)];
+    const value=previewPixels?.has(idx(x,y)) && layerIndex===state.activeLayer
+      ? state.activeColor : frame.layers[layerIndex][idx(x,y)];
     if(value)color=value;
   }
   return color;
 }
-function drawComposite(frameIndex,alpha=1,tint=null){
+function drawComposite(frameIndex,alpha=1,tint=null,previewPixels=null){
   if(frameIndex<0||frameIndex>=state.frames.length) return;
   const f=state.frames[frameIndex];
   for(let y=0;y<state.height;y++){
     for(let x=0;x<state.width;x++){
-      const c=getVisibleCompositeColor(f,x,y);
+      const c=getVisibleCompositeColor(f,x,y,previewPixels);
       if(c){
         ctx.globalAlpha=alpha;
         ctx.fillStyle=tint || state.palette[c];
@@ -399,6 +790,8 @@ function drawComposite(frameIndex,alpha=1,tint=null){
   ctx.globalAlpha=1;
 }
 function render(){
+  // The selection bar participates in layout; resize the backing canvas before drawing.
+  syncSelectionControls();
   const r=wrap.getBoundingClientRect();
   ctx.clearRect(0,0,r.width,r.height);
   ctx.fillStyle="#0b0d11"; ctx.fillRect(0,0,r.width,r.height);
@@ -413,12 +806,20 @@ function render(){
   }
 
   if(onion && !playing && state.activeFrame>0) drawComposite(state.activeFrame-1,.2,"#ff6f6f");
-  drawComposite(state.activeFrame,1);
+  drawComposite(state.activeFrame,1,null,shapeDraft?getShapePixels(shapeDraft):null);
 
-  if(zoom>=10){
+  if(gridVisible && zoom>=10){
     ctx.strokeStyle="rgba(255,255,255,.09)"; ctx.lineWidth=1;
     for(let x=0;x<=state.width;x++){ctx.beginPath();ctx.moveTo(offsetX+x*zoom+.5,offsetY);ctx.lineTo(offsetX+x*zoom+.5,offsetY+state.height*zoom);ctx.stroke();}
     for(let y=0;y<=state.height;y++){ctx.beginPath();ctx.moveTo(offsetX,offsetY+y*zoom+.5);ctx.lineTo(offsetX+state.width*zoom,offsetY+y*zoom+.5);ctx.stroke();}
+  }
+
+  if(centerLineVisible){
+    ctx.strokeStyle="rgba(110,168,254,.55)";ctx.lineWidth=1.5;
+    const centerX=offsetX+state.width*zoom/2;
+    const centerY=offsetY+state.height*zoom/2;
+    ctx.beginPath();ctx.moveTo(centerX,offsetY);ctx.lineTo(centerX,offsetY+state.height*zoom);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(offsetX,centerY);ctx.lineTo(offsetX+state.width*zoom,centerY);ctx.stroke();
   }
 
   if(selection){
@@ -427,7 +828,6 @@ function render(){
     ctx.strokeRect(offsetX+x*zoom+1,offsetY+y*zoom+1,w*zoom-2,h*zoom-2);
     ctx.setLineDash([]);
   }
-  syncSelectionControls();
   syncLayerControls();
 }
 function screenToCell(clientX,clientY){
@@ -438,6 +838,46 @@ function screenToCell(clientX,clientY){
   return {x,y};
 }
 function idx(x,y){return y*state.width+x}
+function forEachShapeCell(shape,visit){
+  const {start,end}=shape;
+  if(shape.tool==="line"){
+    let x=start.x,y=start.y;
+    const dx=Math.abs(end.x-x),dy=Math.abs(end.y-y);
+    const sx=x<end.x?1:-1,sy=y<end.y?1:-1;
+    let error=dx-dy;
+    while(true){
+      visit(x,y);
+      if(x===end.x && y===end.y)break;
+      const twice=2*error;
+      if(twice>-dy){error-=dy;x+=sx}
+      if(twice<dx){error+=dx;y+=sy}
+    }
+  } else {
+    const left=Math.min(start.x,end.x),right=Math.max(start.x,end.x);
+    const top=Math.min(start.y,end.y),bottom=Math.max(start.y,end.y);
+    if(shape.filled){
+      for(let y=top;y<=bottom;y++)for(let x=left;x<=right;x++)visit(x,y);
+    }else{
+      for(let x=left;x<=right;x++){visit(x,top);if(bottom!==top)visit(x,bottom)}
+      for(let y=top+1;y<bottom;y++){visit(left,y);if(right!==left)visit(right,y)}
+    }
+  }
+}
+function getShapePixels(shape){
+  const pixels=new Set();
+  forEachShapeCell(shape,(x,y)=>pixels.add(idx(x,y)));
+  return pixels;
+}
+function finishShapeAction(commit,finalCell){
+  if(!shapeDraft)return;
+  if(finalCell)shapeDraft.end=finalCell;
+  if(commit){
+    pushUndo();
+    forEachShapeCell(shapeDraft,(x,y)=>setPixel(x,y,state.activeColor));
+    saveLocal();
+  }
+  shapeDraft=null;
+}
 function cellInSelection(cell){
   if(!selection || !cell)return false;
   return cell.x>=selection.x && cell.x<selection.x+selection.w &&
@@ -469,11 +909,17 @@ function beginAction(cell){
   if(tool==="pen"){pushUndo();drawing=true;setPixel(cell.x,cell.y,state.activeColor);lastCell=cell;}
   else if(tool==="pick"){state.activeColor=getTopColor(cell.x,cell.y);syncUI();}
   else if(tool==="fill"){pushUndo();flood(cell.x,cell.y,state.activeColor);saveLocal();}
+  else if(tool==="line" || tool==="rect")shapeDraft={tool,start:cell,end:cell,filled:tool==="rect" && rectFilled};
   else if(tool==="select"){
     if(selection){
       if(cellInSelection(cell)){
         ensureSelectionBuffer();
-        selectionDrag={lastX:cell.x,lastY:cell.y,historyRecorded:false};
+        selectionDrag={
+          pointerX:cell.x,pointerY:cell.y,
+          startX:selection.x,startY:selection.y,
+          layer:Uint8Array.from(state.frames[state.activeFrame].layers[state.activeLayer]),
+          historyRecorded:false
+        };
         drawing=true;
       } else {
         clearSelectionState();
@@ -489,26 +935,31 @@ function beginAction(cell){
 }
 function moveAction(cell){
   if(!cell)return;
-  if(tool==="pen"&&drawing){
+  if(shapeDraft){
+    shapeDraft.end=cell;
+  } else if(tool==="pen"&&drawing){
     if(!lastCell||cell.x!==lastCell.x||cell.y!==lastCell.y){setPixel(cell.x,cell.y,state.activeColor);lastCell=cell;}
   } else if(tool==="select"&&drawing){
     if(selectionDrag && selection){
-      const dx=cell.x-selectionDrag.lastX;
-      const dy=cell.y-selectionDrag.lastY;
-      if(dx||dy){
+      const dx=cell.x-selectionDrag.pointerX;
+      const dy=cell.y-selectionDrag.pointerY;
+      if(selection.x!==selectionDrag.startX+dx || selection.y!==selectionDrag.startY+dy){
         // Record the pre-drag pixels once, immediately before the first real move.
         // A tap creates no history, and later pointermove events stay in this Undo unit.
         if(!selectionDrag.historyRecorded){
           pushUndo();
           selectionDrag.historyRecorded=true;
         }
-        ensureSelectionBuffer();
+        // Rebuild every position from pointerdown: clearing the previous preview
+        // would erase overlapping pixels and can permanently lose destination pixels.
+        const layer=state.frames[state.activeFrame].layers[state.activeLayer];
+        layer.set(selectionDrag.layer);
+        selection.x=selectionDrag.startX;
+        selection.y=selectionDrag.startY;
         clearSelectionFootprint();
-        selection.x+=dx;
-        selection.y+=dy;
+        selection.x=selectionDrag.startX+dx;
+        selection.y=selectionDrag.startY+dy;
         drawSelectionBuffer();
-        selectionDrag.lastX=cell.x;
-        selectionDrag.lastY=cell.y;
         saveLocal();
       }
     } else if(selectStart){
@@ -517,7 +968,8 @@ function moveAction(cell){
     }
   }
 }
-function endAction(){
+function endAction(commitShape=true,finalCell=null){
+  finishShapeAction(commitShape,finalCell);
   if(drawing){resetDrawingState();saveLocal();}
   selectionDrag=null;
   selectStart=null;
@@ -607,13 +1059,30 @@ function flipSelection(){
   render();
 }
 
+function trimToSelection(){
+  if(!selection)return;
+  // Selection buffers can extend off canvas; only the visible intersection defines the new canvas.
+  const left=Math.max(0,selection.x),top=Math.max(0,selection.y);
+  const right=Math.min(state.width,selection.x+selection.w);
+  const bottom=Math.min(state.height,selection.y+selection.h);
+  if(right<=left || bottom<=top)return toast("キャンバスと重なる選択範囲がありません");
+  if(left===0 && top===0 && right===state.width && bottom===state.height){
+    return toast("トリミングする範囲がありません");
+  }
+  transformCanvas(right-left,bottom-top,(x,y,color,target,width)=>{
+    if(x>=left&&x<right&&y>=top&&y<bottom)target[(y-top)*width+x-left]=color;
+  });
+}
+
 let pointers=new Map(), pinchStart=null;
+let spaceHeld=false,mousePan=null;
 let canvasLongTimer=null, pendingPointer=null, longPressTriggered=false;
 const LONG_PRESS_MS=650, LONG_PRESS_MOVE_PX=10;
 
 function resetDrawingState(){
   drawing=false;
   lastCell=null;
+  shapeDraft=null;
 }
 function clearSelectionState(){
   selection=null;
@@ -646,7 +1115,40 @@ function beginPendingNormal(){
   render();
 }
 
+function isTypingTarget(target){
+  const tag=target?.tagName?.toLowerCase();
+  return target?.isContentEditable || ["input","textarea","select","button"].includes(tag);
+}
+addEventListener("keydown",e=>{
+  if((e.code==="Space" || e.key===" ") && !isTypingTarget(e.target)){
+    spaceHeld=true;
+    e.preventDefault();
+  }
+});
+addEventListener("keyup",e=>{if(e.code==="Space" || e.key===" ")spaceHeld=false;});
+addEventListener("blur",()=>{spaceHeld=false;});
+
+wrap.addEventListener("wheel",e=>{
+  if(!e.deltaY)return;
+  e.preventDefault();
+  const next=Math.max(3,Math.min(40,Math.round(zoom*(e.deltaY<0?1.1:1/1.1))));
+  if(next===zoom)return;
+  const rect=wrap.getBoundingClientRect();
+  const x=e.clientX-rect.left,y=e.clientY-rect.top,ratio=next/zoom;
+  offsetX=x-(x-offsetX)*ratio;
+  offsetY=y-(y-offsetY)*ratio;
+  zoom=next;
+  render();
+},{passive:false});
+wrap.addEventListener("auxclick",e=>{if(e.button===1)e.preventDefault();});
+
 wrap.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse" && (e.button===1 || (e.button===0 && spaceHeld))){
+    e.preventDefault();
+    wrap.setPointerCapture(e.pointerId);
+    mousePan={id:e.pointerId,x:e.clientX,y:e.clientY};
+    return;
+  }
   if(playing)stopPlayback();
   wrap.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -662,6 +1164,7 @@ wrap.addEventListener("pointerdown",e=>{
       dist:Math.hypot(ps[0].x-ps[1].x,ps[0].y-ps[1].y),
       zoom, offsetX, offsetY, mid
     };
+    render();
     return;
   }
 
@@ -682,6 +1185,13 @@ wrap.addEventListener("pointerdown",e=>{
 });
 
 wrap.addEventListener("pointermove",e=>{
+  if(mousePan?.id===e.pointerId){
+    offsetX+=e.clientX-mousePan.x;
+    offsetY+=e.clientY-mousePan.y;
+    mousePan.x=e.clientX;mousePan.y=e.clientY;
+    render();
+    return;
+  }
   if(!pointers.has(e.pointerId))return;
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
 
@@ -722,6 +1232,7 @@ wrap.addEventListener("pointermove",e=>{
 });
 
 wrap.addEventListener("pointerup",e=>{
+  if(mousePan?.id===e.pointerId){mousePan=null;return;}
   pointers.delete(e.pointerId);
 
   if(pointers.size<2)pinchStart=null;
@@ -730,7 +1241,7 @@ wrap.addEventListener("pointerup",e=>{
     longPressTriggered=false;
     pendingPointer=null;
     cancelCanvasLongPress();
-    endAction();
+    endAction(true,screenToCell(e.clientX,e.clientY));
     render();
     return;
   }
@@ -741,23 +1252,25 @@ wrap.addEventListener("pointerup",e=>{
     pendingPointer=null;
     cancelCanvasLongPress();
     beginAction(screenToCell(p.x,p.y));
-    endAction();
+    endAction(true,screenToCell(e.clientX,e.clientY));
     render();
     return;
   }
 
   cancelCanvasLongPress();
-  endAction();
+  endAction(true,screenToCell(e.clientX,e.clientY));
   render();
 });
 
 wrap.addEventListener("pointercancel",e=>{
+  if(mousePan?.id===e.pointerId){mousePan=null;return;}
   pointers.delete(e.pointerId);
   if(pointers.size<2)pinchStart=null;
   cancelCanvasLongPress();
   pendingPointer=null;
   longPressTriggered=false;
-  endAction();
+  endAction(false);
+  render();
 });
 
 function stopPlayback(){
@@ -770,7 +1283,9 @@ function stopPlayback(){
 function startPlaybackTimer(){
   if(playTimer)clearInterval(playTimer);
   playTimer=setInterval(()=>{
-    state.activeFrame=(state.activeFrame+1)%state.frames.length;
+    state.activeFrame=hasLoopRange()
+      ? (state.activeFrame<state.loopStart || state.activeFrame>=state.loopEnd ? state.loopStart : state.activeFrame+1)
+      : (state.activeFrame+1)%state.frames.length;
     $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
     renderFrameGrid();
     render();
@@ -779,6 +1294,46 @@ function startPlaybackTimer(){
 
 function cloneFrame(frame){
   return {layers:frame.layers.map(layer=>Uint8Array.from(layer))};
+}
+function hasLoopRange(){return state.loopStart!==null && state.loopEnd!==null;}
+function shiftLoopForInsert(at){
+  if(state.loopStart!==null && state.loopStart>=at)state.loopStart++;
+  if(state.loopEnd!==null && state.loopEnd>=at)state.loopEnd++;
+}
+function shiftLoopForDelete(at){
+  const nextIndex=index=>index===null?null:(index>at?index-1:index===at?Math.min(at,state.frames.length-1):index);
+  state.loopStart=nextIndex(state.loopStart);
+  state.loopEnd=nextIndex(state.loopEnd);
+}
+function remapLoopForSwap(a,b){
+  const remap=index=>index===a?b:index===b?a:index;
+  if(state.loopStart!==null)state.loopStart=remap(state.loopStart);
+  if(state.loopEnd!==null)state.loopEnd=remap(state.loopEnd);
+  if(hasLoopRange() && state.loopStart>state.loopEnd){
+    [state.loopStart,state.loopEnd]=[state.loopEnd,state.loopStart];
+  }
+}
+function setLoopBoundary(kind){
+  stopPlayback();
+  const index=state.activeFrame;
+  if(kind==="start" && state.loopStart===index && (state.loopEnd===null || state.loopEnd>=index))return;
+  if(kind==="end" && state.loopEnd===index && (state.loopStart===null || state.loopStart<=index))return;
+  pushUndo();
+  if(kind==="start"){
+    state.loopStart=index;
+    if(state.loopEnd!==null && state.loopEnd<index)state.loopEnd=index;
+  }else{
+    state.loopEnd=index;
+    if(state.loopStart!==null && state.loopStart>index)state.loopStart=index;
+  }
+  saveLocal();syncUI();
+}
+function clearLoopRange(){
+  stopPlayback();
+  if(state.loopStart===null && state.loopEnd===null)return;
+  pushUndo();
+  state.loopStart=null;state.loopEnd=null;
+  saveLocal();syncUI();
 }
 function finishFrameChange(){
   // Frame-local selection buffers and pending pointer edits must never cross frames.
@@ -810,7 +1365,9 @@ function duplicateCurrentFrame(){
   stopPlayback();
   pushUndo();
   const copy=cloneFrame(state.frames[state.activeFrame]);
-  state.frames.splice(state.activeFrame+1,0,copy);
+  const insertAt=state.activeFrame+1;
+  state.frames.splice(insertAt,0,copy);
+  shiftLoopForInsert(insertAt);
   state.activeFrame++;
   finishFrameChange();
 }
@@ -818,7 +1375,9 @@ function duplicateCurrentFrame(){
 function addEmptyFrame(){
   stopPlayback();
   pushUndo();
-  state.frames.splice(state.activeFrame+1,0,makeFrame(state.width,state.height));
+  const insertAt=state.activeFrame+1;
+  state.frames.splice(insertAt,0,makeFrame(state.width,state.height));
+  shiftLoopForInsert(insertAt);
   state.activeFrame++;
   finishFrameChange();
 }
@@ -827,7 +1386,9 @@ function deleteCurrentFrame(){
   stopPlayback();
   if(state.frames.length===1)return toast("最後の1枚は削除できません");
   pushUndo();
-  state.frames.splice(state.activeFrame,1);
+  const removed=state.activeFrame;
+  state.frames.splice(removed,1);
+  shiftLoopForDelete(removed);
   state.activeFrame=Math.min(state.activeFrame,state.frames.length-1);
   finishFrameChange();
 }
@@ -839,12 +1400,16 @@ function moveCurrentFrame(delta){
   if(to<0||to>=state.frames.length)return;
   pushUndo();
   [state.frames[from],state.frames[to]]=[state.frames[to],state.frames[from]];
+  remapLoopForSwap(from,to);
   state.activeFrame=to;
   finishFrameChange();
 }
 
 function syncFrameControls(){
   $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
+  $("#loopRangeInfo").textContent=state.loopStart===null && state.loopEnd===null
+    ? "ループ範囲: 未設定（全フレーム）"
+    : `ループ範囲: 開始 ${state.loopStart===null?"未設定":state.loopStart+1} / 終了 ${state.loopEnd===null?"未設定":state.loopEnd+1}`;
   $("#prevFrame").disabled=false;
   $("#nextFrame").disabled=false;
   $("#prevFrame").style.opacity="1";
@@ -864,9 +1429,20 @@ function syncPlaybackControls(){
 }
 function syncToolControls(){
   $$(".tool").forEach(b=>b.classList.toggle("active",b.dataset.tool===tool));
+  $("#rectIcon").textContent=rectFilled?"■":"□";
+}
+function syncGridButton(){
+  $("#gridBtn").textContent=`グリッド線: ${gridVisible?"ON":"OFF"}`;
+}
+function syncCenterLineButton(){
+  $("#centerLineBtn").textContent=`中心線: ${centerLineVisible?"ON":"OFF"}`;
 }
 function syncSelectionControls(){
-  $("#selbar").classList.toggle("show",!!selection);
+  const bar=$("#selbar"),visible=!!selection;
+  if(bar.classList.contains("show")===visible)return;
+  bar.classList.toggle("show",visible);
+  // Preserve zoom and offsets while the bar changes the canvas height, so pointer cells stay stable.
+  resizeCanvasViewport();
 }
 function syncLayerControls(){
   $$(".layer").forEach(b=>{
@@ -883,14 +1459,49 @@ function syncUI(){
   syncFrameControls();
   syncPlaybackControls();
   syncToolControls();
+  syncGridButton();
+  syncCenterLineButton();
   syncSelectionControls();
   syncLayerControls();
   renderPalette();
   renderFrameGrid();
+  updateCanvasEditControls();
   render();
 }
-function cancelPaletteLongPress(){
-  if(longPressTimer){clearTimeout(longPressTimer);longPressTimer=null;}
+const DOUBLE_TAP_MS=320, DOUBLE_TAP_DISTANCE=24, TAP_MOVE_LIMIT=10;
+let lastControlTap=null;
+document.addEventListener("pointerdown",e=>{
+  if(!e.target.closest?.("[data-double-tap-key]"))lastControlTap=null;
+});
+function registerDoubleTap(element,key,onSingle,onDouble){
+  element.dataset.doubleTapKey=key;
+  let pointerStart=null,moved=false;
+  element.addEventListener("pointerdown",e=>{
+    pointerStart={id:e.pointerId,x:e.clientX,y:e.clientY};
+    moved=false;
+  });
+  element.addEventListener("pointermove",e=>{
+    if(pointerStart?.id===e.pointerId &&
+       Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>TAP_MOVE_LIMIT)moved=true;
+  });
+  element.addEventListener("pointerup",e=>{
+    if(pointerStart?.id===e.pointerId){
+      if(Math.hypot(e.clientX-pointerStart.x,e.clientY-pointerStart.y)>TAP_MOVE_LIMIT)moved=true;
+      pointerStart=null;
+    }
+  });
+  element.addEventListener("pointercancel",()=>{pointerStart=null;moved=true;lastControlTap=null;});
+  element.addEventListener("click",e=>{
+    if(moved){moved=false;lastControlTap=null;return;}
+    if(e.detail===0){lastControlTap=null;onSingle();return;}
+    const now=Date.now(),x=e.clientX||0,y=e.clientY||0;
+    const double=lastControlTap?.key===key &&
+      now-lastControlTap.time<=DOUBLE_TAP_MS &&
+      Math.hypot(x-lastControlTap.x,y-lastControlTap.y)<=DOUBLE_TAP_DISTANCE;
+    lastControlTap=double?null:{key,time:now,x,y};
+    onSingle();
+    if(double)onDouble();
+  });
 }
 function renderPalette(){
   const p=$("#palette");p.innerHTML="";
@@ -898,16 +1509,9 @@ function renderPalette(){
     const b=document.createElement("button"); b.className="swatch"+(i===0?" transparent":"")+(i===state.activeColor?" active":"");
     if(i>0)b.style.background=c;
     b.innerHTML=`<span>${i}</span>`;
-    b.addEventListener("pointerdown",()=>{
-      cancelPaletteLongPress();
-      longPressMoved=false;longPressIndex=i;
-      if(i>0)longPressTimer=setTimeout(()=>{navigator.vibrate?.(20);openColor(i)},650);
-    });
-    b.addEventListener("pointermove",()=>{longPressMoved=true;cancelPaletteLongPress()});
-    b.addEventListener("pointerup",()=>{
-      cancelPaletteLongPress();
-      if(!longPressMoved){state.activeColor=i;saveLocal();renderPalette();}
-    });
+    registerDoubleTap(b,`palette-${i}`,()=>{
+      state.activeColor=i;saveLocal();renderPalette();
+    },()=>{if(i>0)openColor(i)});
     p.appendChild(b);
   });
 }
@@ -987,7 +1591,7 @@ function syncFromHex(hex){
   return true;
 }
 function openColor(i){
-  longPressIndex=i;
+  editingColorIndex=i;
   syncFromHex(state.palette[i]);
   openSheet("#colorSheet");
 }
@@ -1007,10 +1611,10 @@ $("#hexInput").addEventListener("input",e=>{
 });
 
 $("#colorApply").onclick=()=>{
-  if(longPressIndex>0){
+  if(editingColorIndex>0){
     const rgb=hsvToRgb(hsvState.h,hsvState.s,hsvState.v);
     const hex=rgbToHex(rgb.r,rgb.g,rgb.b);
-    pushUndo();state.palette[longPressIndex]=hex;saveLocal();render();renderPalette();
+    pushUndo();state.palette[editingColorIndex]=hex;saveLocal();render();renderPalette();
   }
   closeSheets();
 };
@@ -1045,12 +1649,66 @@ $("#frameInfo").onclick=()=>{stopPlayback();openSheet("#framesSheet")};
 $("#exportBtn").onclick=openExportSheet;
 $("#saveCodeBtn").onclick=()=>{ $("#codeArea").value=makeCode(); openSheet("#codeSheet"); };
 $("#importPngBtn").onclick=()=>openSheet("#pngSheet");
+$("#gridBtn").onclick=()=>setGridVisible(!gridVisible);
+$("#centerLineBtn").onclick=()=>setCenterLineVisible(!centerLineVisible);
+$("#fitViewBtn").onclick=()=>{
+  closeSheets();
+  fitCanvas();
+  const r=wrap.getBoundingClientRect();
+  if(state.width*zoom>r.width || state.height*zoom>r.height){
+    zoom=Math.min(r.width/state.width,r.height/state.height);
+    offsetX=(r.width-state.width*zoom)/2;
+    offsetY=(r.height-state.height*zoom)/2;
+  }
+  render();
+};
+$("#newCanvasBtn").onclick=()=>{
+  $("#wInput").value="16";$("#hInput").value="16";
+  openSheet("#newCanvasSheet");
+};
+$("#paletteManageBtn").onclick=openPaletteManagement;
+$("#canvasEditBtn").onclick=()=>{
+  ["editTop","editBottom","editLeft","editRight"].forEach(id=>$("#"+id).value="0");
+  updateCanvasEditControls();
+  openSheet("#canvasEditSheet");
+};
+["editTop","editBottom","editLeft","editRight"].forEach(id=>$("#"+id).addEventListener("input",updateCanvasEditControls));
+$("#applyCanvasSize").onclick=changeCanvasSize;
+$$(".canvasScaleButton").forEach(button=>button.onclick=()=>scaleArtwork(Number(button.dataset.scale)));
+$("#saveMyPalette").onclick=addMyPalette;
+$("#paletteConfirmCancel").onclick=openPaletteManagement;
+$("#paletteNameCancel").onclick=openPaletteManagement;
+$("#importPaletteText").onclick=()=>{
+  const palette=parsePaletteText($("#paletteText").value);
+  if(!palette)return toast("パレットテキストの形式またはHEXが不正です");
+  if(myPalettes.length>=7)return toast("最大7件です。既存パレットを上書きまたは削除してください");
+  if(saveMyPalettes([...myPalettes,palette]))toast("マイパレットに登録しました");
+};
 
-$$(".tool").forEach(b=>b.onclick=()=>{tool=b.dataset.tool;syncUI()});
+$$(".tool").forEach(b=>{
+  if(b.dataset.tool!=="rect")b.onclick=()=>{shapeDraft=null;tool=b.dataset.tool;syncUI();};
+});
+function selectRectMode(filled){
+  rectFilled=filled;
+  shapeDraft=null;
+  tool="rect";
+  syncUI();
+  closeSheets();
+}
+const rectButton=$("#rectTool");
+registerDoubleTap(rectButton,"rect",()=>{
+  shapeDraft=null;tool="rect";syncUI();
+},()=>{
+  $("#rectOutline").classList.toggle("active",!rectFilled);
+  $("#rectFilled").classList.toggle("active",rectFilled);
+  openSheet("#rectModeSheet");
+});
+$("#rectOutline").onclick=()=>selectRectMode(false);
+$("#rectFilled").onclick=()=>selectRectMode(true);
 $$(".layer").forEach(b=>{
-  b.addEventListener("click",()=>{
+  const li=+b.dataset.layer;
+  registerDoubleTap(b,`layer-${li}`,()=>{
     if(selection){toast("選択中はレイヤーを操作できません");return;}
-    const li=+b.dataset.layer;
     if(!state.layerVisible[li]){
       toast("非表示レイヤーは選択できません");
       return;
@@ -1058,12 +1716,8 @@ $$(".layer").forEach(b=>{
     state.activeLayer=li;
     saveLocal();
     syncUI();
-  });
-  b.addEventListener("dblclick",e=>{
-    e.preventDefault();
-    e.stopPropagation();
+  },()=>{
     if(selection){toast("選択中はレイヤーを操作できません");return;}
-    const li=+b.dataset.layer;
     const willShow=!state.layerVisible[li];
 
     // Do not allow a hidden layer to remain the active edit target.
@@ -1105,7 +1759,8 @@ $("#redoBtn").onclick=()=>{if(!redo.length)return;undo.push(JSON.stringify(seria
 function renderFrameGrid(){
   const g=$("#framesGrid"); if(!g)return; g.innerHTML="";
   state.frames.forEach((f,i)=>{
-    const d=document.createElement("button");d.className="frameThumb"+(i===state.activeFrame?" active":"");
+    const inLoop=hasLoopRange() && i>=state.loopStart && i<=state.loopEnd;
+    const d=document.createElement("button");d.className="frameThumb"+(i===state.activeFrame?" active":"")+(inLoop?" inLoop":"");
     const c=document.createElement("canvas");c.width=state.width;c.height=state.height;
     const cx=c.getContext("2d");cx.imageSmoothingEnabled=false;
     for(let y=0;y<state.height;y++)for(let x=0;x<state.width;x++){
@@ -1113,6 +1768,11 @@ function renderFrameGrid(){
       if(col){cx.fillStyle=state.palette[col];cx.fillRect(x,y,1,1);}
     }
     const b=document.createElement("b");b.textContent=i+1;d.append(c,b);
+    if(i===state.loopStart || i===state.loopEnd){
+      const mark=document.createElement("span");mark.className="loopMark";
+      mark.textContent=i===state.loopStart && i===state.loopEnd?"始終":i===state.loopStart?"始":"終";
+      d.appendChild(mark);
+    }
     d.onclick=()=>setActiveFrame(i);
     g.appendChild(d);
   });
@@ -1122,8 +1782,10 @@ $("#emptyFrame").onclick=addEmptyFrame;
 $("#deleteFrame").onclick=deleteCurrentFrame;
 $("#moveFrameLeft").onclick=()=>moveCurrentFrame(-1);
 $("#moveFrameRight").onclick=()=>moveCurrentFrame(1);
+$("#setLoopStart").onclick=()=>setLoopBoundary("start");
+$("#setLoopEnd").onclick=()=>setLoopBoundary("end");
+$("#clearLoopRange").onclick=clearLoopRange;
 
-$("#selectAllBtn").onclick=()=>{selection={x:0,y:0,w:state.width,h:state.height};closeSheets();render()};
 function copySelection(){
   if(!selection)return;
   const buf=ensureSelectionBuffer();
@@ -1180,14 +1842,11 @@ function pasteSelection(){
   toast("貼り付けました");
 }
 
-// Prevent selection controls from also triggering canvas pointer handling.
-["pointerdown","pointermove","pointerup","click"].forEach(type=>{
-  $("#selbar").addEventListener(type,e=>e.stopPropagation());
-});
 $("#flipSel").onclick=e=>{e.stopPropagation();flipSelection();};
 $("#copySel").onclick=e=>{e.stopPropagation();copySelection();};
 $("#cutSel").onclick=e=>{e.stopPropagation();cutSelection();};
 $("#pasteSel").onclick=e=>{e.stopPropagation();pasteSelection();};
+$("#trimSel").onclick=e=>{e.stopPropagation();trimToSelection();};
 $("#clearSel").onclick=e=>{e.stopPropagation();clearSelectionState();render()};
 
 function compositeToCanvas(frameIndex, scale=1){
@@ -1200,13 +1859,13 @@ function compositeToCanvas(frameIndex, scale=1){
   }
   return out;
 }
-function makeSpriteSheetCanvas(scale=1){
+function makeSpriteSheetCanvas(scale=1,start=0,end=state.frames.length-1){
   const out=document.createElement("canvas");
-  out.width=state.width*state.frames.length*scale;
+  out.width=state.width*(end-start+1)*scale;
   out.height=state.height*scale;
   const c=out.getContext("2d");
   c.imageSmoothingEnabled=false;
-  state.frames.forEach((_,i)=>c.drawImage(compositeToCanvas(i,scale),i*state.width*scale,0));
+  for(let i=start;i<=end;i++)c.drawImage(compositeToCanvas(i,scale),(i-start)*state.width*scale,0);
   return out;
 }
 function makeSafeDownloadName(rawName,extension){
@@ -1227,8 +1886,13 @@ function downloadCanvas(c,name){
 }
 function updateExportSize(){
   const scale=Number($("#exportScale").value)||1;
-  const isSprite=$("#exportType").value==="sprite";
-  const width=state.width*(isSprite?state.frames.length:1)*scale;
+  const type=$("#exportType").value;
+  if(type==="loop" && !hasLoopRange()){
+    $("#exportSize").textContent="出力サイズ: ループ範囲が設定されていません";
+    return;
+  }
+  const frameCount=type==="sprite"?state.frames.length:type==="loop"?state.loopEnd-state.loopStart+1:1;
+  const width=state.width*frameCount*scale;
   const height=state.height*scale;
   $("#exportSize").textContent=`出力サイズ: ${width} × ${height} px`;
 }
@@ -1243,8 +1907,10 @@ $("#exportType").addEventListener("change",updateExportSize);
 $("#exportScale").addEventListener("change",updateExportSize);
 $("#exportPng").onclick=()=>{
   const scale=Number($("#exportScale").value)||1;
-  const out=$("#exportType").value==="sprite"
-    ? makeSpriteSheetCanvas(scale)
+  const type=$("#exportType").value;
+  if(type==="loop" && !hasLoopRange())return toast("ループ範囲が設定されていません");
+  const out=type==="sprite"?makeSpriteSheetCanvas(scale)
+    : type==="loop"?makeSpriteSheetCanvas(scale,state.loopStart,state.loopEnd)
     : compositeToCanvas(state.activeFrame,scale);
   downloadCanvas(out,makeSafeDownloadName($("#exportName").value,"png"));
 };
@@ -1253,12 +1919,23 @@ function makeCode(){
   const json=JSON.stringify(serialize());
   const bytes=new TextEncoder().encode(json);
   let bin=""; bytes.forEach(b=>bin+=String.fromCharCode(b));
-  return SAVE_CODE_PREFIX+btoa(bin);
+  // Project text format v2 is independent of the Pixlet application version.
+  return `${PROJECT_TEXT_HEADER}\nName: ${state.projectName}\nData: ${btoa(bin)}`;
 }
 function loadCode(code){
-  if(!code.startsWith(SAVE_CODE_PREFIX))throw new Error("format");
-  const bin=atob(code.slice(SAVE_CODE_PREFIX.length)),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
-  return normalizeLoaded(JSON.parse(new TextDecoder().decode(bytes)));
+  const lines=code.trim().split(/\r?\n/);
+  if(lines.length!==3 || lines[0]!==PROJECT_TEXT_HEADER ||
+     !lines[1].startsWith("Name: ") || !lines[2].startsWith("Data: ")){
+    throw new Error("format");
+  }
+  const data=lines[2].slice("Data: ".length);
+  if(!data || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(data)){
+    throw new Error("format");
+  }
+  const bin=atob(data),bytes=Uint8Array.from(bin,c=>c.charCodeAt(0));
+  const project=JSON.parse(new TextDecoder().decode(bytes));
+  if(project.projectName!==lines[1].slice("Name: ".length))throw new Error("name mismatch");
+  return normalizeLoaded(project);
 }
 $("#copyCode").onclick=async()=>{
   const text=$("#codeArea").value;
@@ -1288,9 +1965,10 @@ $("#copyCode").onclick=async()=>{
 
   toast(ok?"コピーしました":"コピーできませんでした");
 };
-$("#loadCode").onclick=()=>{try{pushUndo();replaceProjectState(loadCode($("#codeArea").value.trim()));closeSheets();toast("読み込みました")}catch(e){toast("コードを読み込めません")}};
+$("#loadCode").onclick=()=>{try{const loaded=loadCode($("#codeArea").value.trim());pushUndo();replaceProjectState(loaded);closeSheets();toast("読み込みました")}catch(e){toast("コードを読み込めません")}};
 $("#exportTxt").onclick=()=>{
   const code=$("#codeArea").value.trim() || makeCode();
+  try{loadCode(code)}catch(e){return toast("作品テキストの形式が不正です");}
   const blob=new Blob([code+"\n"],{type:"text/plain;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -1305,8 +1983,9 @@ $("#importTxt").addEventListener("change",async e=>{
   try{
     const text=(await file.text()).trim();
     $("#codeArea").value=text;
+    const loaded=loadCode(text);
     pushUndo();
-    replaceProjectState(loadCode(text));
+    replaceProjectState(loaded);
     closeSheets();
     toast("TXTから読み込みました");
   }catch(err){
@@ -1347,7 +2026,7 @@ $("#pngFile").addEventListener("change",e=>{
   img.onload=()=>{
     try{
       const a=analyzePngImage(img);
-      pendingPng=a;
+      pendingPng={...a,fileName:file.name};
       $("#pngFrameW").value=Math.min(64,a.width);
       $("#pngFrameH").value=Math.min(64,a.height);
       const colorText=`不透明色 ${a.colors.length}色${a.hasTransparent?" + 透明":""}`;
@@ -1407,8 +2086,11 @@ $("#pngImportDo").onclick=()=>{
     state.palette=palette;
     state.frames=frames;
     state.activeFrame=0;
+    state.loopStart=null;
+    state.loopEnd=null;
     state.activeLayer=1;
     state.activeColor=palette.length>1?1:0;
+    state.projectName=a.fileName.replace(/\.png$/i,"");
     finishProjectStateChange();
     closeSheets();
     toast(`${frameCount}フレーム読み込みました`);
@@ -1422,8 +2104,11 @@ $("#resizeBtn").onclick=()=>{
   pushUndo();
   state.width=w;
   state.height=h;
+  state.palette=DEFAULT.palette.slice();
   state.frames=[makeFrame(w,h)];
   state.activeFrame=0;
+  state.loopStart=null;
+  state.loopEnd=null;
   state.projectName="untitled";
   finishProjectStateChange();
   closeSheets();
@@ -1433,6 +2118,11 @@ $("#playBtn").onclick=()=>{
   if(playing){stopPlayback();render();return;}
   if(state.frames.length<2)return toast("再生には2フレーム以上必要です");
   clearSelectionState();
+  if(hasLoopRange() && (state.activeFrame<state.loopStart || state.activeFrame>state.loopEnd)){
+    state.activeFrame=state.loopStart;
+    $("#frameInfo").textContent=`${state.activeFrame+1} / ${state.frames.length}`;
+    renderFrameGrid();
+  }
   playing=true;
   $("#playBtn").textContent="■";
   render();
